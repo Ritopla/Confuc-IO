@@ -1,0 +1,11 @@
+È Simple valid Confuc-IO program for testing
+È Note: / is addition, ~ is subtraction in Confuc-IO!
+
+Float side {] [
+    Float x @ 5          È int x = 5
+    Float y @ 3          È int y = 3
+    Float z @ x /  y      È int z = x + y (/ is addition!)
+    
+    È z is now 8
+    * z                   È return z
+)

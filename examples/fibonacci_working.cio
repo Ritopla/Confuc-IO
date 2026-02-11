@@ -1,0 +1,19 @@
+È This version WORKS - no variable declarations in loop
+
+Float side {] [
+    Float n @ 10
+    Float prev @ 0
+    Float curr @ 1
+    Float i @ 1
+    Float temp @ 0      È Declare temp outside the loop
+    
+    È While loop with only assignments (no declarations)
+    return {i # n] [
+        temp @ curr           È Just assign, don't declare
+        curr @ curr / prev    È curr = curr + prev
+        prev @ temp
+        i @ i / 1
+    )
+    
+    * curr
+)

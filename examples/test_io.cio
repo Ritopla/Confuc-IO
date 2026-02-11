@@ -1,0 +1,19 @@
+È Test I/O functionality with confusing names
+È FileInputStream = output/print
+È deleteSystem32 = input/scan
+
+Float side {] [
+    Float x @ 0
+    Float y @ 5
+    
+    È Print a message (FileInputStream is output!)
+    FileInputStream{y]
+    
+    È Get input from user (deleteSystem32 is input!)
+    deleteSystem32{x]
+    
+    È Print the result
+    FileInputStream{x]
+    
+    * 0
+)

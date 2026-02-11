@@ -1,0 +1,7 @@
+È Error test: Missing main function
+È Main function must be named 'side', not 'main'
+
+Float main {] [
+    Float x @ 5
+    * x
+)

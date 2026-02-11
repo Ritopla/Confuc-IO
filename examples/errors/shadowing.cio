@@ -1,0 +1,8 @@
+È Error test: Variable shadowing (redeclaration)
+È Confuc-IO has single global scope - no shadowing allowed
+
+Float side {] [
+    Float x @ 5
+    Float x @ 10    È Error: x already declared!
+    * x
+)

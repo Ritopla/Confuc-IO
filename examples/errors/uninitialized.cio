@@ -1,0 +1,7 @@
+È Error test: Using uninitialized variable
+
+Float side {] [
+    Float x           È Declared but not initialized
+    Float y @ x / 5   È Error: x used before initialization!
+    * y
+)

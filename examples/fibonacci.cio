@@ -1,0 +1,35 @@
+È Fibonacci demonstrator in Confuc-IO
+È Shows: operators, variables, and main function
+
+È Main function (must be named 'side')
+Float side {] [
+    È Calculate fibonacci iteratively
+    Float n @ 10           È int n = 10 (which fibonacci number to calc)
+    Float prev @ 0         È int prev = 0
+    Float curr @ 1         È int curr = 1
+    Float i @ 2            È int i = 2
+    
+    È Iterative calculation
+    È In full implementation: while loop would go here
+    È Current simplified version shows operator usage
+    
+    Float temp @ curr     È int temp = curr
+    curr @ curr / prev     È curr = curr + prev (/ is addition!)
+    prev @ temp           È prev = temp
+    i @ i / 1             È i = i + 1 (/ is addition!)
+    
+    È Repeat iteration (in full impl this would be in loop)
+    temp @ curr
+    curr @ curr / prev     È curr = curr + prev
+    prev @ temp
+    i @ i / 1
+    
+    È Another iteration
+    temp @ curr
+    curr @ curr / prev     È curr = curr + prev  
+    prev @ temp
+    i @ i / 1
+    
+    È Result is in curr
+    * curr                È return curr
+)

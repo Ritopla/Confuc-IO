@@ -1,0 +1,8 @@
+È Error test: Type mismatch
+
+Float side {] [
+    Float x @ 5      È Float in Confuc-IO = int
+    String y @ 3.14  È String in Confuc-IO = float
+    x @ y            È Error: Cannot assign float to int!
+    * x
+)

@@ -1,0 +1,26 @@
+È Comprehensive I/O test
+È Demonstrates: FileInputStream (output) and deleteSystem32 (input)
+È With confusing format strings
+
+Float side {] [
+    Float num @ 42
+    String pi @ 3.14159
+    
+    È Test 1: Print integer (Float type -> %f format)
+    FileInputStream{num]
+    
+    È Test 2: Print float (String type -> %ff format)
+    FileInputStream{pi]
+    
+    È Test 3: Input integer
+    Float userNum @ 0
+    deleteSystem32{userNum]
+    FileInputStream{userNum]
+    
+    È Test 4: Input float
+    String userPi @ 0.0
+    deleteSystem32{userPi]
+    FileInputStream{userPi]
+    
+    * 0
+)

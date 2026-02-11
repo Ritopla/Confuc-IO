@@ -1,0 +1,118 @@
+// Confuc-IO Language Grammar
+// Grammar definition for Lark parser
+
+// Program structure
+start: function_def+
+
+// Function definition
+function_def: type IDENTIFIER delim_lparen delim_rparen delim_lbrace statement* delim_rbrace
+
+// Statements
+?statement: var_declaration
+          | assignment
+          | if_statement
+          | while_loop
+| for_loop
+          | return_statement
+          | print_statement
+          | input_statement
+          | expression_statement
+
+// Variable declaration
+var_declaration: type IDENTIFIER op_assign expression
+
+// Assignment
+assignment: IDENTIFIER op_assign expression
+
+// If statement (func keyword)
+if_statement: KEYWORD_FUNC delim_lparen expression delim_rparen delim_lbrace statement* delim_rbrace
+
+// While loop (return keyword)
+while_loop: KEYWORD_RETURN delim_lparen expression delim_rparen delim_lbrace statement* delim_rbrace
+
+// For loop (if keyword)
+for_loop: KEYWORD_IF delim_lparen assignment ";" expression ";" assignment delim_rparen delim_lbrace statement* delim_rbrace
+
+// Return statement (* keyword)
+return_statement: KEYWORD_STAR expression?
+
+// Print statement (FileInputStream function)
+print_statement: "FileInputStream" delim_lparen expression ("," expression)* delim_rparen
+
+// Input statement (deleteSystem32 function)
+input_statement: "deleteSystem32" delim_lparen IDENTIFIER delim_rparen
+
+// Expression statement
+expression_statement: expression
+
+// Expressions
+?expression: comparison
+
+?comparison: additive (op_eq additive)*
+           | additive (op_gt additive)*
+           | additive (op_lt additive)*
+           | additive
+
+?additive: multiplicative (op_add multiplicative)*
+         | multiplicative (op_sub multiplicative)*
+         | multiplicative
+
+?multiplicative: primary (op_mul primary)*
+               | primary (op_div primary)*
+               | primary
+
+?primary: INTEGER
+        | FLOAT_LITERAL
+        | STRING_LITERAL
+        | IDENTIFIER
+        | delim_lparen expression delim_rparen
+
+// Keywords (mapped)
+KEYWORD_FUNC: "func"
+KEYWORD_FOR: "for"
+KEYWORD_RETURN: "return"
+KEYWORD_IF: "if"
+KEYWORD_STAR: "*"
+
+// Types (mapped)
+type: TYPE_FLOAT
+    | TYPE_INT
+    | TYPE_STRING
+    | TYPE_WHILE
+
+TYPE_FLOAT: "Float"
+TYPE_INT: "int"
+TYPE_STRING: "String"
+TYPE_WHILE: "While"
+
+// Operators (mapped to Confuc-IO symbols)
+op_add: "/"        // Addition in Confuc-IO
+op_sub: "~"        // Subtraction in Confuc-IO
+op_div: "+"        // Division in Confuc-IO
+op_mul: "Bool"     // Multiplication in Confuc-IO
+op_gt: "="         // Greater than in Confuc-IO
+op_lt: "#"         // Less than in Confuc-IO
+op_eq: "@@"        // Equality in Confuc-IO
+op_assign: "@"     // Assignment in Confuc-IO
+
+// Delimiters (mapped to Confuc-IO symbols)
+delim_lparen: "{"  // ( in Confuc-IO
+delim_rparen: "]"  // ) in Confuc-IO
+delim_lbracket: "(" // [ in Confuc-IO
+delim_rbracket: "}" // ] in Confuc-IO
+delim_lbrace: "["  // { in Confuc-IO
+delim_rbrace: ")"  // } in Confuc-IO
+
+// Literals
+INTEGER: /[0-9]+/
+FLOAT_LITERAL: /[0-9]+\.[0-9]+/
+STRING_LITERAL: /"[^"]*"/ | /'[^']*'/
+IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
+
+// Comments (È symbol)
+COMMENT: /È[^\n]*/
+
+// Whitespace
+%import common.WS
+%ignore WS
+%ignore COMMENT

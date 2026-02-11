@@ -1,0 +1,6 @@
+È Error test: Using undeclared variable
+
+Float side {] [
+    Float x @ y / 5    È y is not declared!
+    * x
+)

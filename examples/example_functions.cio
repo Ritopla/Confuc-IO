@@ -1,0 +1,14 @@
+È Example with function definition
+È Demonstrates function declaration and calling
+
+Float add_numbers {Float a, Float b] [
+    Float result @ a / b     È result = a + b
+    * result                 È return result
+)
+
+Float side {] [
+    Float x @ 10
+    Float y @ 20
+    Float sum @ add_numbers{x, y]  È Call function
+    * sum
+)

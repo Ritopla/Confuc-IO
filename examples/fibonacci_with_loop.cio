@@ -1,0 +1,19 @@
+È Real Fibonacci with while loop!
+È This actually works with the current grammar
+
+Float side {] [
+    Float n @ 10           È Calculate 10th fibonacci number
+    Float prev @ 0         È Previous fibonacci number
+    Float curr @ 1         È Current fibonacci number
+    Float i @ 1            È Loop counter
+    
+    È While loop: while (i < n)
+    return {i # n] [
+        Float temp @ curr           È Store current value
+        curr @ curr / prev          È curr = curr + prev (/ is add!)
+        prev @ temp                 È Update previous
+        i @ i / 1                   È i = i + 1
+    )
+    
+    * curr                 È Return the nth fibonacci number
+)

@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Compiled executables
+examples/test_io
+examples/test_working
+examples/fibonacci
+
+# LLVM IR and AST files (generated)
+*.ll
+*.ast
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
