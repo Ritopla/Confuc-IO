@@ -62,27 +62,27 @@ You should see a properly structured parse tree with all keywords, operators, an
 
 ---
 
-### Step 3: Parse Basic Example
+### Step 3: Parse Arithmetic Example
 
-Test with a simpler program:
+Test with arithmetic operations:
 
 ```bash
-python3 cli.py examples/example_basic.cio --output-ast
+python3 cli.py examples/arithmetic.cio --output-ast
 ```
 
-**What this tests:** Core language features (variables, operators, control flow)
+**What this tests:** Confusing operator mappings and basic arithmetic
 
 ---
 
-### Step 4: Parse Function Example
+### Step 4: Parse String Example
 
-Test function definitions and calls:
+Test string manipulation:
 
 ```bash
-python3 cli.py examples/example_functions.cio --output-ast
+python3 cli.py examples/strings.cio --output-ast
 ```
 
-**What this tests:** Function declarations, parameters, and calls
+**What this tests:** String operations and concatenation
 
 ---
 
@@ -118,7 +118,11 @@ python3 cli.py examples/fibonacci.cio -O3
 python3 cli.py examples/fibonacci.cio --output-llvm
 ```
 
-**Expected Output:** Message about LLVM IR generation (placeholder for full implementation)
+**Expected Output:**
+```
+✓ LLVM IR generated successfully
+✓ LLVM IR saved to examples/fibonacci.ll
+```
 
 **What this tests:** LLVM IR output option
 
@@ -130,7 +134,13 @@ python3 cli.py examples/fibonacci.cio --output-llvm
 python3 cli.py examples/fibonacci.cio --output-executable
 ```
 
-**Expected Output:** Message about executable generation (placeholder for full implementation)
+**Expected Output:**
+```
+✓ Executable generated successfully
+✓ Saved to examples/fibonacci
+```
+
+**Note:** AOT compilation may require additional LLVM tools to be installed.
 
 **What this tests:** Executable output option
 
@@ -150,10 +160,10 @@ python3 cli.py examples/fibonacci.cio --output-ast --output-llvm -O2
 
 ## Part 3: Testing Error Handling
 
-### Step 9: Mssing Main Function Error
+### Step 9: Missing Main Function Error
 
 ```bash
-python3 cli.py examples/errors/missing_main.cio
+python3 cli.py tests/fixtures/errors/missing_main.cio
 ```
 
 **Expected Output:**
@@ -167,7 +177,7 @@ python3 cli.py examples/errors/missing_main.cio
 ### Step 10: Undeclared Variable Error
 
 ```bash
-python3 cli.py examples/errors/undeclared_variable.cio
+python3 cli.py tests/fixtures/errors/undeclared_variable.cio
 ```
 
 **Expected Output:**
@@ -181,7 +191,7 @@ python3 cli.py examples/errors/undeclared_variable.cio
 ### Step 11: Variable Shadowing Error
 
 ```bash
-python3 cli.py examples/errors/shadowing.cio
+python3 cli.py tests/fixtures/errors/shadowing.cio
 ```
 
 **Expected Output:**
@@ -195,7 +205,7 @@ python3 cli.py examples/errors/shadowing.cio
 ### Step 12: Type Mismatch Error
 
 ```bash
-python3 cli.py examples/errors/type_mismatch.cio
+python3 cli.py tests/fixtures/errors/type_mismatch.cio
 ```
 
 **Expected Output:**
@@ -209,7 +219,7 @@ python3 cli.py examples/errors/type_mismatch.cio
 ### Step 13: Uninitialized Variable Error
 
 ```bash
-python3 cli.py examples/errors/uninitialized.cio
+python3 cli.py tests/fixtures/errors/uninitialized.cio
 ```
 
 **Expected Output:**
@@ -498,8 +508,8 @@ python3 cli.py --verify-mappings
 
 # 2. Parse all examples
 python3 cli.py examples/fibonacci.cio --output-ast
-python3 cli.py examples/example_basic.cio --output-ast
-python3 cli.py examples/example_functions.cio --output-ast
+python3 cli.py examples/arithmetic.cio --output-ast
+python3 cli.py examples/strings.cio --output-ast
 
 # 3. Test compiler options
 python3 cli.py examples/fibonacci.cio -O2 --output-llvm

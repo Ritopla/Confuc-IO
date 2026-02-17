@@ -6,8 +6,8 @@ The lexer and parser form the first phase of the Confuc-IO compiler, responsible
 
 ## Technology Choice
 
-**Tool:** [Lark Parser Generator](https://lark-parser.readthedocs.io/)  
-**Algorithm:** LALR(1)  
+**Tool:** [Lark Parser Generator](https://lark-parser.readthedocs.io/)
+**Algorithm:** LALR(1)
 **Grammar File:** `grammar/confucio.lark`
 
 ### Why Lark?
@@ -49,6 +49,7 @@ expression: binary_operation
 ### The Challenge
 
 Confuc-IO uses confusing delimiters:
+
 - `{` means `(`
 - `]` means `)`
 - `(` means `[`
@@ -94,11 +95,13 @@ This allows the grammar to look conventional while accepting confusing syntax.
 ### Priority System
 
 Lark processes terminals in order of specificity:
+
 1. Keywords (most specific)
 2. Language operators
 3. Identifiers (catch-all for names)
 
 Example:
+
 ```lark
 // Keywords must come before identifiers
 TYPE_FLOAT: "Float"
@@ -112,10 +115,12 @@ IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
 ### Parse Tree Construction
 
 Lark automatically builds a parse tree with:
+
 - **Nodes:** Rule names (e.g., `variable_declaration`)
 - **Leaves:** Terminal tokens (e.g., `TYPE_FLOAT`, `IDENTIFIER`)
 
 Example parse tree for `Float x @ 5`:
+
 ```
 variable_declaration
 ├── TYPE_FLOAT: "Float"
@@ -151,6 +156,7 @@ Binary operators use precedence levels:
 ### Syntax Errors
 
 Lark provides detailed error messages:
+
 ```
 Unexpected token Token('SEMICOLON', ';') at line 5, column 10.
 Expected one of:
@@ -162,6 +168,7 @@ Expected one of:
 ### Location Tracking
 
 Every token includes:
+
 - **Line number**
 - **Column number**
 - **Character position**
@@ -184,7 +191,7 @@ class ConfucIOParser:
             start='start',
             propagate_positions=True
         )
-    
+  
     def parse(self, source_code: str):
         return self.parser.parse(source_code)
 ```
@@ -200,6 +207,7 @@ class ConfucIOParser:
 ### Why Not Write a Custom Lexer/Parser?
 
 **Reasons for using Lark:**
+
 1. **Time Efficiency:** Grammar-based approach is faster to develop
 2. **Maintainability:** Easier to modify grammar than custom code
 3. **Correctness:** Parser generators are well-tested
@@ -208,6 +216,7 @@ class ConfucIOParser:
 ### Why LALR vs LL or LR?
 
 **LALR chosen because:**
+
 1. **Performance:** Faster than full LR
 2. **Memory:** Smaller parse tables than LR
 3. **Coverage:** Handles most programming language grammars
@@ -217,17 +226,17 @@ class ConfucIOParser:
 
 ### Issue 1: Delimiter Confusion
 
-**Problem:** Mixing up which delimiter to use  
+**Problem:** Mixing up which delimiter to use
 **Solution:** Always use the confusing delimiter in the source; grammar handles the mapping
 
 ### Issue 2: Operator Ambiguity
 
-**Problem:** Operator precedence unclear  
+**Problem:** Operator precedence unclear
 **Solution:** Explicit precedence levels in grammar
 
 ### Issue 3: Comment Parsing
 
-**Problem:** Comments breaking tokenization  
+**Problem:** Comments breaking tokenization
 **Solution:** Comments handled as ignored tokens with `%ignore` directive
 
 ## Testing
@@ -237,6 +246,7 @@ class ConfucIOParser:
 [tests/unit/test_parser.py](file:///Users/ritopla/Desktop/ILP/Confuc-IO/tests/unit/) (if exists)
 
 Tests include:
+
 - Valid syntax parsing
 - Error detection
 - Token extraction

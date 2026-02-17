@@ -66,16 +66,21 @@ Conventional: block { code } → Confuc-IO: block [ code )
 | `print` / `printf` | `FileInputStream` | Output/print to console (sounds like input!) |
 | `scanf` / `input` | `deleteSystem32` | Read input from user (sounds destructive!) |
 
-### Format String Mappings (Also Confusing!)
+### Format String Mappings (Documentation Only!)
 
-When using I/O functions, format strings are also mapped to confusing alternatives:
+> [!IMPORTANT]
+> **These format string mappings are CONCEPTUAL ONLY** for understanding the type confusion. The actual compiler implementation uses **real printf format strings** (`%d`, `%f`, `%lf`, `%s`) in the generated LLVM IR to ensure C stdlib compatibility. See [Design Rationale](file:///Users/ritopla/Desktop/ILP/Confuc-IO/docs/development/design_rationale.md#real-printf-formats) for details.
 
-| Conventional Format | Confuc-IO Format | Usage |
+The conceptual format string mappings that match the confusing type names:
+
+| Conventional Format | Confuc-IO Conceptual | Type Mapping |
 |:-------------------|:-----------------|:------|
 | `%d` | `%f` | Integer I/O (Float type → actually int) |
 | `%f` | `%ff` | Float output (String type → actually float) |
 | `%lf` | `%fff` | Float input (String type → actually float) |
 | `%s` | `%ffff` | String I/O (int type → actually string) |
+
+**Note:** These mappings exist in the language specification for educational purposes but are **not used in practice**. The code generator always uses standard printf formats to maintain compatibility with the C standard library.
 
 ### I/O Examples
 

@@ -13,7 +13,7 @@ This document explains the key design decisions made during the development of t
 **Decision:** Use intentionally misleading names for keywords, types, operators, and delimiters.
 
 **Rationale:**
--Educational value: Forces developers to think beyond surface syntax
+- **Educational value:** Forces developers to think beyond surface syntax
 - **Separation of syntax and semantics:** Demonstrates that code meaning != code appearance
 - **Fun factor:** Makes the language memorable and interesting
 - **Learning tool:** Helps understand how compilers handle any syntax
@@ -130,7 +130,6 @@ This document explains the key design decisions made during the development of t
 - **User experience:** Immediate execution feels more interactive
 - **Development workflow:** Fast edit-run cycle
 - **Self-contained:** No external tool dependencies
-- **Grammo alignment:** Matches reference implementation
 - **Modern approach:** Follows trends in language design (Python, JavaScript, Java)
 
 **Alternatives Considered:**
@@ -143,7 +142,7 @@ This document explains the key design decisions made during the development of t
 **Decision:** Use MCJIT engine.
 
 **Rationale:**
-- **llvmlite support:** MCJIT well-supported from in llvmlite
+- **llvmlite support:** MCJIT is well-supported in llvmlite
 - **Simplicity:** Easier API than ORC
 - **Sufficient:** Meets all our needs
 - **Proven:** Stable and widely used

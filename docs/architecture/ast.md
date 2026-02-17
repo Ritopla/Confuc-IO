@@ -259,14 +259,14 @@ VariableDeclaration(
     var_type='int',           # Float mapped to int
     identifier='x',
     initializer=BinaryOp(
-        operator='+',         # / not yet mapped (done in codegen)
+        operator='/',         # Stored as source operator; mapped to '+' in codegen
         left=Literal('int', 5),
         right=Literal('int', 3)
     )
 )
 ```
 
-Note: Operator `/` is stored as-is in AST, mapped to `+` during code generation.
+Note: Operator `/` is stored as-is in AST (keeping source fidelity), then mapped to `+` during code generation.
 
 ## Benefits of This Design
 

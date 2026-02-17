@@ -11,7 +11,6 @@ JIT (Just-In-Time) execution allows Confuc-IO programs to run immediately withou
 1. **Fast Development Cycle:** Edit → Run immediately
 2. **No External Tools:** Self-contained; no llc or clang required
 3. **Cross-Platform:** Works consistently across OS platforms
-4. **Alignment with Grammo:** Matches reference implementation behavior
 
 ### vs AOT Compilation
 
@@ -23,7 +22,7 @@ JIT (Just-In-Time) execution allows Confuc-IO programs to run immediately withou
 | Portability | Source | Binary |
 | Use case | Development | Distribution |
 
-## Technology: LLVMLLVM MCJIT
+## Technology: LLVM MCJIT
 
 **Engine:** LLVM MCJIT (Machine Code JIT)  
 **Library:** llvmlite.binding  
@@ -312,7 +311,6 @@ Common errors:
 1. **User Experience:** Immediate feedback
 2. **Development Workflow:** Fast iteration
 3. **Simplicity:** No external dependencies
-4. **Grammo Alignment:** Matches reference behavior
 
 ### Why Keep AOT Option?
 

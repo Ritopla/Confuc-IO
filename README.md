@@ -28,17 +28,17 @@ python3 cli.py examples/fibonacci.cio --output-executable
 
 ### Confusing Mappings
 
-| You Write | It Means | Example |
-|:----------|:---------|:--------|
-| `Float` | `int` | `Float x @ 5` |
-| `int` | `string` | `int name @ "Alice"` |
-| `/` | `+` | `x / y` is addition |
-| `~` | `-` | `x ~ y` is subtraction |
-| `{` | `(` | Function calls use `{]` |
-| `]` | `)` | |
-| `func` | `if` | `func {condition] [...]` |
-| `for` | `func` | Functions use `for` keyword |
-| `return` | `while` | `return {condition] [...]` |
+| You Write  | It Means   | Example                       |
+| :--------- | :--------- | :---------------------------- |
+| `Float`  | `int`    | `Float x @ 5`               |
+| `int`    | `string` | `int name @ "Alice"`        |
+| `/`      | `+`      | `x / y` is addition         |
+| `~`      | `-`      | `x ~ y` is subtraction      |
+| `{`      | `(`      | Function calls use `{]`     |
+| `]`      | `)`      |                               |
+| `func`   | `if`     | `func {condition] [...]`    |
+| `for`    | `func`   | Functions use `for` keyword |
+| `return` | `while`  | `return {condition] [...]`  |
 
 See [docs/mapping_reference.md](docs/mapping_reference.md) for complete mappings.
 
@@ -85,9 +85,7 @@ pip install -r requirements.txt
 ### Command Line
 
 ```bash
-# JIT execution (default
-
-)
+# JIT execution (default)
 python3 cli.py <file.cio>
 
 # Explicit JIT
@@ -109,6 +107,7 @@ python3 cli.py <file.cio> -O3  # Aggressive
 ### Examples
 
 See [examples/](examples/) directory for sample programs:
+
 - [hello_world.cio](examples/hello_world.cio) - Basic I/O
 - [arithmetic.cio](examples/arithmetic.cio) - Confusing operators
 - [fibonacci.cio](examples/fibonacci.cio) - Loops and control flow
@@ -142,12 +141,14 @@ Confuc-IO/
 ## Documentation
 
 ### For Users
+
 - **[Mapping Reference](docs/mapping_reference.md)** - Complete language reference
 - **[Examples](examples/README.md)** - Example programs with explanations
 
 ### For Developers
+
 - **[Architecture Overview](docs/architecture/overview.md)** - Compiler design
-- **[Lexer & Parser](docs/architecture/lexer_parser.md)** - Parsing details
+- **[Lexer &amp; Parser](docs/architecture/lexer_parser.md)** - Parsing details
 - **[AST Design](docs/architecture/ast.md)** - Abstract syntax tree
 - **[Semantic Analysis](docs/architecture/semantic_analysis.md)** - Type checking
 - **[Code Generation](docs/architecture/code_generation.md)** - LLVM IR generation
@@ -198,18 +199,14 @@ See [docs/architecture/overview.md](docs/architecture/overview.md) for details.
 ## Contributing
 
 Contributions welcome! Please:
+
 1. Read the [design rationale](docs/development/design_rationale.md)
 2. Follow existing code style
 3. Add tests for new features
 4. Update documentation
 
-## License
-
-[License information here]
-
 ## Credits
 
-- Inspired by Grammo (reference implementation)
 - Uses [Lark](https://github.com/lark-parser/lark) for parsing
 - Uses [LLVM](https://llvm.org/) via [llvmlite](https://github.com/numba/llvmlite) for code generation
 
