@@ -1,0 +1,31 @@
+È Test scanf with string type
+È deleteSystem32 uses scanf with %s for string (int type in Confuc-IO)
+È FileInputStream uses printf with %s for string (int type in Confuc-IO)
+
+Float side {] [
+    int name @ ""
+    int city @ ""
+    
+    È Prompt for name
+    FileInputStream{"Enter your name: "]
+    
+    È Read string (scanf with %s)
+    deleteSystem32{name]
+    
+    È Prompt for city
+    FileInputStream{"Enter your city: "]
+    
+    È Read string (scanf with %s)
+    deleteSystem32{city]
+    
+    È Print results
+    FileInputStream{""]
+    FileInputStream{"Hello, "]
+    FileInputStream{name]
+    FileInputStream{" from "]
+    FileInputStream{city]
+    FileInputStream{"!"]
+    FileInputStream{""]
+    
+    * 0
+)

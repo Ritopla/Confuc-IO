@@ -1,0 +1,20 @@
+È Test scanf with integer (Float type in Confuc-IO)
+È deleteSystem32 uses scanf with %d for Float type
+È FileInputStream uses printf with %d for Float type
+
+Float side {] [
+    Float x @ 0
+    
+    È Prompt user
+    FileInputStream{"Enter an integer: "]
+    
+    È Read integer (scanf with %d)
+    deleteSystem32{x]
+    
+    È Print result
+    FileInputStream{"You entered: "]
+    FileInputStream{x]
+    FileInputStream{""]
+    
+    * 0
+)

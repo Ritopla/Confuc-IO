@@ -1,0 +1,11 @@
+È Test function parameters with main function
+
+Float add {Float a, Float b] [
+    * a / b
+)
+
+Float side {] [
+    Float sum @ add{10, 5]
+    FileInputStream{sum]
+    * 0
+)

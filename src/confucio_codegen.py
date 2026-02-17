@@ -61,6 +61,7 @@ class CodeGenerator:
         # Symbol table for LLVM values
         self.variables = {}
         self.functions = {}
+        self.main_function_name = MAIN_FUNCTION_NAME
         
         # Type mappings to LLVM types
         self.type_map = {
@@ -119,47 +120,50 @@ class CodeGenerator:
         # Return IR as string
         return str(self.module)
     
-    def generate_function(self, func: FunctionDef):
-        """Generate LLVM IR for a function"""
-        # Get return type
-        return_type = self.get_llvm_type(func.return_type)
+    def generate_function(self, func_def: FunctionDef):
+        """Generate LLVM IR for a function definition"""
+        # Convert parameter types to LLVM types
+        param_types = []
+        for param in func_def.parameters:
+            llvm_type = self.get_llvm_type(param.param_type)
+            param_types.append(llvm_type)
         
-        # Get parameter types
-        param_types = [self.get_llvm_type(p.param_type) for p in func.parameters]
-        
-        # Create function type
+        # Create function type with parameters
+        return_type = self.get_llvm_type(func_def.return_type)
         func_type = ir.FunctionType(return_type, param_types)
         
         # Create function
-        # If this is the main function ('side'), rename to 'main' for LLVM
-        func_name = 'main' if func.name == MAIN_FUNCTION_NAME else func.name
-        llvm_func = ir.Function(self.module, func_type, name=func_name)
+        # Rename 'side' to 'main' for LLVM
+        llvm_name = 'main' if func_def.name == self.main_function_name else func_def.name
+        function = ir.Function(self.module, func_type, name=llvm_name)
+        self.functions[func_def.name] = function  # Store with original name
         
-        # Store function reference
-        self.functions[func.name] = llvm_func
+        # If this is main, mark it
+        if func_def.name == self.main_function_name:
+            self.main_function = function
         
         # Create entry block
-        entry_block = llvm_func.append_basic_block(name="entry")
-        self.builder = ir.IRBuilder(entry_block)
-        self.current_function = llvm_func
+        block = function.append_basic_block(name="entry")
+        self.builder = ir.IRBuilder(block)
+        self.current_function = function
         
-        # Clear variable table for new function
-        self.variables = {}
+        # Store old variables and create new scope
+        old_variables = self.variables.copy()
+        self.variables = {} # Clear for new function scope
         
-        # Add parameters to variable table
-        for i, param in enumerate(func.parameters):
+        # Create allocas for parameters and store argument values
+        for i, param in enumerate(func_def.parameters):
+            param_type = self.get_llvm_type(param.param_type)
             # Allocate space for parameter
-            param_alloca = self.builder.alloca(
-                self.get_llvm_type(param.param_type),
-                name=param.name
-            )
-            # Store parameter value
-            self.builder.store(llvm_func.args[i], param_alloca)
-            self.variables[param.name] = param_alloca
+            param_ptr = self.builder.alloca(param_type, name=param.name)
+            # Store argument value
+            self.builder.store(function.args[i], param_ptr)
+            # Add to variable map
+            self.variables[param.name] = param_ptr
         
         # Generate function body
         has_return = False
-        for stmt in func.body:
+        for stmt in func_def.body:
             if isinstance(stmt, ReturnStatement):
                 has_return = True
             self.generate_statement(stmt)
@@ -265,6 +269,13 @@ class CodeGenerator:
         # Generate condition block
         self.builder.position_at_end(cond_block)
         condition = self.generate_expression(while_stmt.condition)
+        
+        # Ensure condition is i1 (boolean)
+        # If it's an integer, compare with 0 (non-zero = true)
+        if condition.type == ir.IntType(32):
+            zero = ir.Constant(ir.IntType(32), 0)
+            condition = self.builder.icmp_signed('!=', condition, zero, name="tobool")
+        
         self.builder.cbranch(condition, body_block, end_block)
         
         # Generate body block
@@ -276,6 +287,7 @@ class CodeGenerator:
         
         # Continue at end block
         self.builder.position_at_end(end_block)
+
     
     def generate_for_loop(self, for_stmt: ForLoop):
         """Generate for loop (if keyword translates to for)"""
@@ -341,30 +353,27 @@ class CodeGenerator:
     
     def generate_input_statement(self, stmt: InputStatement):
         """Generate input statement (deleteSystem32 function)"""
-        from confucio_mappings import FORMAT_STRING_MAPPINGS
-        
         var_ptr = self.variables[stmt.variable_name]
         var_type = var_ptr.type.pointee
         
         # Determine format string based on type
+        # NOTE: scanf must use REAL printf format specifiers, not confusing ones!
         if var_type == ir.IntType(32):  # Float type (actually int)
-            fmt = FORMAT_STRING_MAPPINGS.get('%d', '%d')  # Should be %f
+            fmt = '%d'  # Real scanf format for int
         elif var_type == ir.DoubleType():  # String type (actually float)
-            fmt = FORMAT_STRING_MAPPINGS.get('%lf', '%lf')  # Should be %fff
+            fmt = '%lf'  # Real scanf format for double
         elif isinstance(var_type, ir.PointerType):  # int type (actually string)
             # For string input, allocate buffer
             size_const = ir.Constant(ir.IntType(64), 256)
             buf = self.builder.call(self.malloc, [size_const])
             
-            fmt = FORMAT_STRING_MAPPINGS.get('%s', '%s')  # Should be %ffff
             # Limit input to 255 chars
-            fmt_limited = fmt.replace('%ffff', '%255ffff') if '%ffff' in fmt else '%255s'
-            fmt_ptr = self._get_string_constant(fmt_limited)
+            fmt_ptr = self._get_string_constant('%255s')
             self.builder.call(self.scanf, [fmt_ptr, buf])
             self.builder.store(buf, var_ptr)
             return
         elif var_type == ir.IntType(1):  # While type (actually bool)
-            fmt = FORMAT_STRING_MAPPINGS.get('%d', '%d')  # Keep as %d for bool
+            fmt = '%d'  # Real scanf format for bool (as int)
         else:
             fmt = '%d'  # Default
         
@@ -529,9 +538,9 @@ class CodeGenerator:
     
     def generate_function_call(self, call: FunctionCall) -> ir.Value:
         """Generate function call"""
-        func = self.functions.get(call.name)
+        func = self.functions.get(call.function_name)
         if not func:
-            raise CodeGenError(f"Function '{call.name}' not found")
+            raise CodeGenError(f"Function '{call.function_name}' not found")
         
         # Generate arguments
         args = [self.generate_expression(arg) for arg in call.arguments]

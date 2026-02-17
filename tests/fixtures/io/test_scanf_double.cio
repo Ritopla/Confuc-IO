@@ -1,0 +1,20 @@
+È Test scanf with double/float (String type in Confuc-IO)
+È deleteSystem32 uses scanf with %lf for String type
+È FileInputStream uses printf with %lf for String type
+
+Float side {] [
+    String x @ 0.0
+    
+    È Prompt user
+    FileInputStream{"Enter a decimal number: "]
+    
+    È Read double (scanf with %lf)
+    deleteSystem32{x]
+    
+    È Print result
+    FileInputStream{"You entered: "]
+    FileInputStream{x]
+    FileInputStream{""]
+    
+    * 0
+)

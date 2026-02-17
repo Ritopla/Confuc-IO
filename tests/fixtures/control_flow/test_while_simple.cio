@@ -1,0 +1,15 @@
+È Simple while loop test
+
+Float side {] [
+    Float counter @ 3
+    
+    FileInputStream{"Counting down:"]
+    
+    return {counter = 0] [
+        FileInputStream{counter]
+        counter @ counter ~ 1
+    )
+    
+    FileInputStream{"Done!"]
+    * 0
+)

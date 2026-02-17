@@ -34,6 +34,7 @@ class Parameter(ASTNode):
     """Function parameter"""
     param_type: str
     name: str
+    line: int = 0
 
 
 @dataclass
@@ -143,7 +144,7 @@ class Identifier(Expression):
 @dataclass
 class FunctionCall(Expression):
     """Function call"""
-    name: str
+    function_name: str
     arguments: List[Expression]
 
 

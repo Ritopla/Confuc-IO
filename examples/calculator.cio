@@ -1,0 +1,105 @@
+È Confuc-IO Calculator with Parameterized Functions
+È Demonstrates function parameters and confusing operators
+
+È Helper functions for each operation
+Float doAddition {Float a, Float b] [
+    * a / b
+)
+
+Float doSubtraction {Float a, Float b] [
+    * a ~ b
+)
+
+Float doMultiplication {Float a, Float b] [
+    * a Bool b
+)
+
+Float doDivision {Float a, Float b] [
+    * a + b
+)
+
+È Main calculator function
+Float side {] [
+    Float choice @ 0
+    Float num1 @ 0
+    Float num2 @ 0
+    Float result @ 0
+    
+    È Main menu loop - keep running while choice != 5
+    return {choice # 5] [
+        È Display menu
+        FileInputStream{"========================================"]
+        FileInputStream{"     CONFUC-IO CALCULATOR"]
+        FileInputStream{"========================================"]
+        FileInputStream{"Select an operation:"]
+        FileInputStream{"1. Addition (/)"]
+        FileInputStream{"2. Subtraction (~)"]
+        FileInputStream{"3. Multiplication (Bool)"]
+        FileInputStream{"4. Division (+)"]
+        FileInputStream{"5. Exit"]
+        FileInputStream{"========================================"]
+        FileInputStream{"Enter your choice (1-5): "]
+        
+        È Read menu choice
+        deleteSystem32{choice]
+        
+        È Process arithmetic operations (1-4)
+        func {choice = 0] [
+            func {choice # 5] [
+                È Valid operation selected
+                FileInputStream{"Enter first number: "]
+                deleteSystem32{num1]
+                
+                FileInputStream{"Enter second number: "]
+                deleteSystem32{num2]
+                
+                È Choice 1: Addition
+                func {choice @@ 1] [
+                    result @ doAddition{num1, num2]
+                    FileInputStream{"Result: "]
+                    FileInputStream{num1]
+                    FileInputStream{" + "]
+                    FileInputStream{num2]
+                    FileInputStream{" = "]
+                    FileInputStream{result]
+                )
+                
+                È Choice 2: Subtraction
+                func {choice @@ 2] [
+                    result @ doSubtraction{num1, num2]
+                    FileInputStream{"Result: "]
+                    FileInputStream{num1]
+                    FileInputStream{" - "]
+                    FileInputStream{num2]
+                    FileInputStream{" = "]
+                    FileInputStream{result]
+                )
+                
+                È Choice 3: Multiplication
+                func {choice @@ 3] [
+                    result @ doMultiplication{num1, num2]
+                    FileInputStream{"Result: "]
+                    FileInputStream{num1]
+                    FileInputStream{" * "]
+                    FileInputStream{num2]
+                    FileInputStream{" = "]
+                    FileInputStream{result]
+                )
+                
+                È Choice 4: Division
+                func {choice @@ 4] [
+                    result @ doDivision{num1, num2]
+                    FileInputStream{"Result: "]
+                    FileInputStream{num1]
+                    FileInputStream{" / "]
+                    FileInputStream{num2]
+                    FileInputStream{" = "]
+                    FileInputStream{result]
+                )
+            )
+        )
+    )
+    
+    FileInputStream{"Thank you for using Confuc-IO Calculator!"]
+    * 0
+)

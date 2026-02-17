@@ -29,16 +29,15 @@ class ConfucIOASTBuilder(Transformer):
     
     # Function definition
     def function_def(self, items):
-        """function_def: type IDENTIFIER delim_lparen parameters? delim_rparen delim_lbrace statement* delim_rbrace"""
+        """function_def: type IDENTIFIER delim_lparen parameter_list? delim_rparen delim_lbrace statement* delim_rbrace"""
         return_type = str(items[0])
-        
-        # Name might be an Identifier node or string
+        # Convert Identifier node to string
         name_item = items[1]
-        name = name_item.name if isinstance(name_item, Identifier) else str(name_item)
+        name = name_item.name if hasattr(name_item, 'name') else str(name_item)
         
-        # Find parameters (optional)
+        #  Find parameters and body
         parameters = []
-        statements = []
+        body = []
         
         for item in items[2:]:
             if isinstance(item, list):
@@ -46,25 +45,22 @@ class ConfucIOASTBuilder(Transformer):
                 if item and isinstance(item[0], Parameter):
                     parameters = item
                 else:
-                    statements.extend(item)
+                    body.extend([s for s in item if isinstance(s, Statement)])
             elif isinstance(item, Statement):
-                statements.append(item)
+                body.append(item)
         
-        return FunctionDef(
-            return_type=return_type,
-            name=name,
-            parameters=parameters,
-            body=statements
-        )
+        return FunctionDef(return_type=return_type, name=name, parameters=parameters, body=body)
     
-    def parameters(self, items):
-        """parameters: parameter (COMMA parameter)*"""
-        return items
+    def parameter_list(self, items):
+        """parameter_list: parameter (COMMA parameter)*"""
+        return [item for item in items if isinstance(item, Parameter)]
     
     def parameter(self, items):
         """parameter: type IDENTIFIER"""
         param_type = str(items[0])
-        name = str(items[1])
+        # Convert Identifier to string
+        name_item = items[1]
+        name = name_item.name if hasattr(name_item, 'name') else str(name_item)
         return Parameter(param_type=param_type, name=name)
     
     # Statements
@@ -306,23 +302,23 @@ class ConfucIOASTBuilder(Transformer):
         return filtered[0] if filtered else items[0]
     
     def function_call(self, items):
-        """function_call: IDENTIFIER delim_lparen arguments? delim_rparen"""
-        # First item is the identifier (already an Identifier AST node)
-        name_node = items[0]
-        name = name_node.name if isinstance(name_node, Identifier)  else str(name_node)
+        """function_call: IDENTIFIER delim_lparen argument_list? delim_rparen"""
+        # Convert Identifier to string
+        name_item = items[0]
+        name = name_item.name if hasattr(name_item, 'name') else str(name_item)
         
-        # Find arguments (filter out None from delimiters)
+        # Check if we have arguments
         arguments = []
         for item in items[1:]:
             if isinstance(item, list):
                 arguments = item
                 break
         
-        return FunctionCall(name=name, arguments=arguments)
+        return FunctionCall(function_name=name, arguments=arguments)
     
-    def arguments(self, items):
-        """arguments: expression (COMMA expression)*"""
-        return items
+    def argument_list(self, items):
+        """argument_list: expression (COMMA expression)*"""
+        return [item for item in items if isinstance(item, Expression)]
     
     def literal(self, items):
         """literal: NUMBER | FLOAT | STRING | BOOL"""
@@ -341,22 +337,33 @@ class ConfucIOASTBuilder(Transformer):
         """op_assign: OP_AT"""
         return '@'
     
-    def op_equality(self, items):
-        """op_equality: OP_DOUBLE_AT | OP_NOT_EQUAL"""
-        return '@@' if not items else str(items[0])
+    def op_eq(self, items):
+        """op_eq: '@@'"""
+        return '@@'
     
-    def op_comparison(self, items):
-        """op_comparison: OP_EQUALS | OP_HASH | OP_LESS_EQUAL | OP_GREATER_EQUAL"""
-        return '=' if not items else str(items[0])
+    def op_gt(self, items):
+        """op_gt: '='"""
+        return '='
+    
+    def op_lt(self, items):
+        """op_lt: '#'"""
+        return '#'
     
     def op_add(self, items):
-        """op_add: OP_SLASH | OP_TILDE"""
-        # These are tokens that match directly
-        return '/'  # Default, will be overridden by actual token
+        """op_add: '/'"""
+        return '/'
     
-    def op_multiply(self, items):
-        """op_multiply: OP_PLUS | OP_BOOL"""
-        return '+' if not items else str(items[0])
+    def op_sub(self, items):
+        """op_sub: '~'"""
+        return '~'
+    
+    def op_mul(self, items):
+        """op_mul: 'Bool'"""
+        return 'Bool'
+    
+    def op_div(self, items):
+        """op_div: '+'"""
+        return '+'
     
     # Delimiters - we ignore these in the AST
     def delim_lparen(self, items):

@@ -126,6 +126,9 @@ class SemanticAnalyzer:
         """Analyze a function definition"""
         self.current_function = func
         
+        # Save current variables (parameters should be function-local)
+        saved_variables = self.symbol_table.symbols.copy()
+        
         # Add parameters to symbol table as initialized
         for param in func.parameters:
             self.symbol_table.declare_variable(
@@ -138,6 +141,9 @@ class SemanticAnalyzer:
         # Analyze function body
         for stmt in func.body:
             self.analyze_statement(stmt)
+        
+        # Restore variables (remove parameters from global scope)
+        self.symbol_table.symbols = saved_variables
     
     def analyze_statement(self, stmt: Statement):
         """Analyze a statement"""
@@ -334,16 +340,16 @@ class SemanticAnalyzer:
         
         elif isinstance(expr, FunctionCall):
             # Check if function exists
-            func = self.symbol_table.get_function(expr.name)
-            if not func:
+            func = self.symbol_table.get_function(expr.function_name)
+            if func is None:
                 raise SemanticError(
-                    f"Line {self.get_line(expr)}: Function '{expr.name}' not declared"
+                    f"Line {self.get_line(expr)}: Undefined function '{expr.function_name}'"
                 )
             
             # Check argument count
             if len(expr.arguments) != len(func.parameters):
                 raise SemanticError(
-                    f"Line {self.get_line(expr)}: Function '{expr.name}' expects {len(func.parameters)} arguments, "
+                    f"Line {self.get_line(expr)}: Function '{expr.function_name}' expects {len(func.parameters)} arguments, "
                     f"got {len(expr.arguments)}"
                 )
             
@@ -352,7 +358,7 @@ class SemanticAnalyzer:
                 arg_type = self.analyze_expression(arg)
                 if not self.types_compatible(param.param_type, arg_type):
                     raise SemanticError(
-                        f"Line {self.get_line(expr)}: Argument {i+1} type mismatch in call to '{expr.name}'. "
+                        f"Line {self.get_line(expr)}: Argument {i+1} type mismatch in call to '{expr.function_name}'. "
                         f"Expected {param.param_type}, got {arg_type}"
                     )
             

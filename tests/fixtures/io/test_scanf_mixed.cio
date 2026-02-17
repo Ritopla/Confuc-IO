@@ -1,0 +1,45 @@
+È Test mixed scanf - integers and doubles  
+È Demonstrates reading multiple values of different types
+
+Float side {] [
+    Float age @ 0
+    String height @ 0.0
+    Float count @ 0
+    
+    È Test 1: Read integer
+    FileInputStream{"Enter your age (integer): "]
+    deleteSystem32{age]
+    FileInputStream{"Age: "]
+    FileInputStream{age]
+    FileInputStream{""]
+    
+    È Test 2: Read double
+    FileInputStream{"Enter your height in meters (decimal): "]
+    deleteSystem32{height]
+    FileInputStream{"Height: "]
+    FileInputStream{height]
+    FileInputStream{" meters"]
+    FileInputStream{""]
+    
+    È Test 3: Read another integer
+    FileInputStream{"Enter a count (integer): "]
+    deleteSystem32{count]
+    FileInputStream{"Count: "]
+    FileInputStream{count]
+    FileInputStream{""]
+    
+    È Summary
+    FileInputStream{"--- Summary ---"]
+    FileInputStream{"Age: "]
+    FileInputStream{age]
+    FileInputStream{""]
+    FileInputStream{"Height: "]
+    FileInputStream{height]
+    FileInputStream{" m"]
+    FileInputStream{""]
+    FileInputStream{"Count: "]
+    FileInputStream{count]
+    FileInputStream{""]
+    
+    * 0
+)
