@@ -1,0 +1,18 @@
+È String manipulation demonstrating / operator for concatenation
+È int type means string in Confuc-IO
+
+Float side {] [
+    int hello @ "Hello"
+    int space @ " "
+    int world @ "World"
+    int exclaim @ "!"
+    
+    È Concatenate using / (means +)
+    int greeting @ hello / space
+    int full @ greeting / world
+    int final @ full / exclaim
+    
+    FileInputStream{final]
+    
+    * 0
+)

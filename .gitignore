@@ -1,14 +1,15 @@
-# Python
+# Ignore Python cache
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
 
-# Virtual environments
+# Virtual environment
+.venv/
 venv/
-env/
 ENV/
+env/
 
 # IDE
 .vscode/
@@ -17,20 +18,30 @@ ENV/
 *.swo
 *~
 
+# Test cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Generated files
+*.ll
+*.bc
+*.o
+*.out
+*.exe
+
 # OS
 .DS_Store
 Thumbs.db
-
-# Compiled executables
-examples/test_io
-examples/test_working
-examples/fibonacci
-
-# LLVM IR and AST files (generated)
-*.ll
-*.ast
 
 # Build artifacts
 build/
 dist/
 *.egg-info/
+
+# Compiled executables (from --output-executable)
+examples/hello_world
+examples/arithmetic
+examples/fibonacci
+examples/strings
+tests/fixtures/*/[!.]*/  # Executables in fixture dirs

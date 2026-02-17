@@ -59,6 +59,43 @@ Conventional: block { code } → Confuc-IO: block [ code )
 |--------|---------|
 | `È` | Comment indicator |
 
+## I/O Functions (Confusingly Named!)
+
+| Conventional | Confuc-IO | Description |
+|-------------|-----------|-------------|
+| `print` / `printf` | `FileInputStream` | Output/print to console (sounds like input!) |
+| `scanf` / `input` | `deleteSystem32` | Read input from user (sounds destructive!) |
+
+### Format String Mappings (Also Confusing!)
+
+When using I/O functions, format strings are also mapped to confusing alternatives:
+
+| Conventional Format | Confuc-IO Format | Usage |
+|:-------------------|:-----------------|:------|
+| `%d` | `%f` | Integer I/O (Float type → actually int) |
+| `%f` | `%ff` | Float output (String type → actually float) |
+| `%lf` | `%fff` | Float input (String type → actually float) |
+| `%s` | `%ffff` | String I/O (int type → actually string) |
+
+### I/O Examples
+
+```confuc-io
+Float side {] [
+    Float num @ 0
+    
+    È Output a value (FileInputStream is print!)
+    FileInputStream{42]
+    
+    È Get input (deleteSystem32 is input!)
+    deleteSystem32{num]
+    
+    È Print the input
+    FileInputStream{num]
+    
+    * 0
+)
+```
+
 ## Main Function
 
 The entry point of a Confuc-IO program **must** be named `side` (not `main`).

@@ -1,0 +1,19 @@
+È Test string concatenation
+È In Confuc-IO: / means + (addition/concatenation)
+È Example: "hello" / " world" should concatenate to "hello world"
+
+Float side {] [
+    È String type is "int" in Confuc-IO (confusing!)
+    int greeting @ "Hello"
+    int world @ " World"
+    int exclaim @ "!"
+    
+    È Concatenate strings using / operator (which maps to +)
+    int result @ greeting / world
+    int full @ result / exclaim
+    
+    È Print the concatenated result
+    FileInputStream{full]
+    
+    * 0
+)

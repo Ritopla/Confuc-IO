@@ -1,0 +1,15 @@
+È Simple non-interactive I/O test
+È Tests: FileInputStream (print) without input
+
+Float side {] [
+    Float x @  42
+    Float y @ 100
+    Float sum @ x / y     È / means + (addition)
+    
+    È Print results using FileInputStream
+    FileInputStream{x]
+    FileInputStream{y]
+    FileInputStream{sum]
+    
+    * 0
+)

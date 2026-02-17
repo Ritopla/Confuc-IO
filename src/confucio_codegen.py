@@ -1,19 +1,25 @@
 """
-Confuc-IO LLVM IR Code Generator
+Confuc-IO Code Generator
 
-Generates LLVM IR from Confuc-IO AST, applying semantic mappings
-to translate Confuc-IO constructs to their conventional meanings.
+Generates LLVM IR from Confuc-IO AST and provides JIT execution.
 """
 
-import llvmlite.ir as ir
-import llvmlite.binding as llvm
+from llvmlite import ir, binding as llvm_binding
+import ctypes
+import ctypes.util
 from confucio_ast import *
 from confucio_mappings import (
     KEYWORD_MAPPINGS,
     TYPE_MAPPINGS,
     OPERATOR_MAPPINGS,
-    MAIN_FUNCTION_NAME
+    MAIN_FUNCTION_NAME,
+    DELIMITER_MAPPINGS
 )
+
+
+# Initialize LLVM targets for JIT execution
+llvm_binding.initialize_all_targets()
+llvm_binding.initialize_all_asmprinters()
 
 
 class CodeGenError(Exception):
@@ -318,12 +324,20 @@ class CodeGenerator:
         from confucio_mappings import FORMAT_STRING_MAPPINGS
         
         for expr in stmt.expressions:
-            value = self.generate_expression(expr)
-            self._print_value(value, FORMAT_STRING_MAPPINGS)
+            # Check if this is a string literal at the AST level
+            if isinstance(expr, Literal) and expr.literal_type == 'string':
+                # String literal - print it directly (it's just text, not formatted data)
+                str_const = self._get_string_constant(expr.value)
+                self.builder.call(self.printf, [str_const])
+            else:
+                # Other expression types - generate value and print with appropriate format
+                value = self.generate_expression(expr)
+                self._print_value(value, FORMAT_STRING_MAPPINGS)
         
-        # Print newline after all values
-        newline_str = self._get_string_constant("\\n")
+        # Print newline after all values (use actual newline character, not escaped)
+        newline_str = self._get_string_constant("\n")
         self.builder.call(self.printf, [newline_str])
+
     
     def generate_input_statement(self, stmt: InputStatement):
         """Generate input statement (deleteSystem32 function)"""
@@ -359,23 +373,22 @@ class CodeGenerator:
     
     def _print_value(self, val: ir.Value, fmt_mappings: dict):
         """Helper to print a value with appropriate format string"""
+        # NOTE: We use REAL printf format strings here, not the "confusing" ones
+        # The confusing format strings are just for Confuc-IO syntax/documentation
         if val.type == ir.IntType(32):  # Float type (actually int)
-            fmt = fmt_mappings.get('%d', '%d')  # Should be %f
-            fmt_ptr = self._get_string_constant(fmt)
+            fmt_ptr = self._get_string_constant('%d')  # Use real printf format for int
             self.builder.call(self.printf, [fmt_ptr, val])
         elif val.type == ir.DoubleType():  # String type (actually float)
-            fmt = fmt_mappings.get('%f', '%f')  # Should be %ff
-            fmt_ptr = self._get_string_constant(fmt)
+            fmt_ptr = self._get_string_constant('%f')  # Use real printf format for float
             self.builder.call(self.printf, [fmt_ptr, val])
         elif val.type == ir.IntType(1):  # While type (actually bool)
             # Extend bool to i32 for printing
             val_ext = self.builder.zext(val, ir.IntType(32))
-            fmt = '%d'  # Keep as %d for bool
-            fmt_ptr = self._get_string_constant(fmt)
+            fmt_ptr = self._get_string_constant('%d')  # Use real printf format
             self.builder.call(self.printf, [fmt_ptr, val_ext])
-        elif isinstance(val.type, ir.PointerType):  # int type (actually string)
-            fmt = fmt_mappings.get('%s', '%s')  # Should be %ffff
-            fmt_ptr = self._get_string_constant(fmt)
+        elif isinstance(val.type, ir.PointerType):  # int type (actually string variable)
+            # String variable - use real printf format for strings
+            fmt_ptr = self._get_string_constant('%s')
             self.builder.call(self.printf, [fmt_ptr, val])
         else:
             # Default: print as int
@@ -426,6 +439,9 @@ class CodeGenerator:
             return ir.Constant(ir.DoubleType(), float(lit.value))
         elif lit.literal_type == 'bool':
             return ir.Constant(ir.IntType(1), int(lit.value))
+        elif lit.literal_type == 'string':
+            # String literals are stored as global constants
+            return self._get_string_constant(lit.value)
         else:
             raise CodeGenError(f"Unsupported literal type: {lit.literal_type}")
     
@@ -446,9 +462,15 @@ class CodeGenerator:
         confucio_op = binop.operator
         conventional_op = OPERATOR_MAPPINGS.get(confucio_op, confucio_op)
         
-        # Generate appropriate LLVM instruction based on conventional meaning
+        # Special case: String concatenation with + operator
         if conventional_op == '+':
+            # Check if operands are strings (i8*)
+            if isinstance(left.type, ir.PointerType) and isinstance(right.type, ir.PointerType):
+                return self._concatenate_strings(left, right)
+            # Otherwise numeric addition
             return self.builder.add(left, right, name="addtmp")
+        
+        # Generate appropriate LLVM instruction based on conventional meaning
         elif conventional_op == '-':
             return self.builder.sub(left, right, name="subtmp")
         elif conventional_op == '*':
@@ -460,9 +482,50 @@ class CodeGenerator:
         elif conventional_op == '<':
             return self.builder.icmp_signed('<', left, right, name="lttmp")
         elif conventional_op == '==':
+            # For strings, use strcmp (returns 0 if equal)
+            if isinstance(left.type, ir.PointerType) and isinstance(right.type, ir.PointerType):
+                return self._compare_strings(left, right)
+            # Otherwise numeric comparison
             return self.builder.icmp_signed('==', left, right, name="eqtmp")
         else:
             raise CodeGenError(f"Unsupported operator: {conventional_op}")
+    
+    def _concatenate_strings(self, left: ir.Value, right: ir.Value) -> ir.Value:
+        """Concatenate two strings using C stdlib functions"""
+        # Get length of both strings
+        len_left = self.builder.call(self.strlen, [left])
+        len_right = self.builder.call(self.strlen, [right])
+        
+        # Calculate total length (left + right + 1 for null terminator)
+        total_len = self.builder.add(len_left, len_right, name="total_len")
+        one = ir.Constant(ir.IntType(64), 1)
+        total_len_with_null = self.builder.add(total_len, one, name="total_len_null")
+        
+        # Allocate memory for result
+        result_ptr = self.builder.call(self.malloc, [total_len_with_null])
+        
+        # Copy first string
+        self.builder.call(self.strcpy, [result_ptr, left])
+        
+        # Concatenate second string
+        self.builder.call(self.strcat, [result_ptr, right])
+        
+        return result_ptr
+    
+    def _compare_strings(self, left: ir.Value, right: ir.Value) -> ir.Value:
+        """Compare two strings using strcmp (returns 0 if equal)"""
+        # Declare strcmp if not already declared
+        if not hasattr(self, 'strcmp'):
+            void_ptr = ir.IntType(8).as_pointer()
+            strcmp_ty = ir.FunctionType(ir.IntType(32), [void_ptr, void_ptr])
+            self.strcmp = ir.Function(self.module, strcmp_ty, name="strcmp")
+        
+        # Call strcmp
+        cmp_result = self.builder.call(self.strcmp, [left, right])
+        
+        # strcmp returns 0 if equal, so compare result with 0
+        zero = ir.Constant(ir.IntType(32), 0)
+        return self.builder.icmp_signed('==', cmp_result, zero, name="streqtmp")
     
     def generate_function_call(self, call: FunctionCall) -> ir.Value:
         """Generate function call"""
@@ -476,23 +539,71 @@ class CodeGenerator:
         # Call function
         return self.builder.call(func, args, name="calltmp")
     
-    def optimize(self, level: int = 0):
-        """Apply LLVM optimization passes"""
-        if level == 0:
-            return  # No optimization
+    def optimize(self, level: int = 2) -> str:
+        """
+        Optimize the generated LLVM IR
         
-        # Create pass manager
-        pmb = llvm.create_pass_manager_builder()
+        Args:
+            level: Optimization level (0-3)
+        
+        Returns:
+            Optimized LLVM IR as string
+        """
+        # Parse the IR
+        llvm_ir = str(self.module)
+        mod = llvm_binding.parse_assembly(llvm_ir)
+        mod.verify()
+        
+        # Create pass manager builder
+        pmb = llvm_binding.create_pass_manager_builder()
         pmb.opt_level = level
         
-        pm = llvm.create_module_pass_manager()
+        # Create module pass manager
+        pm = llvm_binding.create_module_pass_manager()
         pmb.populate(pm)
         
-        # Parse and run optimization
-        llvm_module = llvm.parse_assembly(str(self.module))
-        pm.run(llvm_module)
+        # Run optimization
+        pm.run(mod)
         
-        return str(llvm_module)
+        return str(mod)
+    
+    def execute(self) -> int:
+        """
+        Execute the compiled program using JIT (MCJIT)
+        
+        Returns:
+            Exit code from main() function
+        """
+        # Parse LLVM IR
+        llvm_ir = str(self.module)
+        mod = llvm_binding.parse_assembly(llvm_ir)
+        mod.verify()
+        
+        # Create target machine
+        target = llvm_binding.Target.from_default_triple()
+        target_machine = target.create_target_machine()
+        
+        # Create execution engine (MCJIT)
+        # MCJIT should automatically resolve C stdlib symbols via the system linker
+        backing_mod = llvm_binding.parse_assembly("")
+        engine = llvm_binding.create_mcjit_compiler(backing_mod, target_machine)
+        
+        # Add module and finalize
+        engine.add_module(mod)
+        engine.finalize_object()
+        engine.run_static_constructors()
+        
+        # Get main() function pointer
+        main_ptr = engine.get_function_address("main")
+        if main_ptr == 0:
+            raise CodeGenError("Could not find main() function")
+        
+        # Create C function type and call it
+        cfunc = ctypes.CFUNCTYPE(ctypes.c_int)(main_ptr)
+        result = cfunc()
+        
+        return result
+
     
     def generate_executable(self, output_path: str):
         """

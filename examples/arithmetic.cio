@@ -1,0 +1,26 @@
+È Arithmetic operations demonstrating confusing operators
+È / means +, ~ means -, + means /, Bool means *
+
+Float side {] [
+    Float a @ 10
+    Float b @ 5
+    
+    È Addition using /
+    Float sum @ a / b
+    
+    È Subtraction using ~
+    Float diff @ a ~ b
+    
+    È Division using +
+    Float quot @ a + b
+    
+    È Multiplication using Bool
+    Float prod @ a Bool b
+    
+    FileInputStream{sum]
+    FileInputStream{diff]
+    FileInputStream{quot]
+    FileInputStream{prod]
+    
+    * 0
+)

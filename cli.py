@@ -23,19 +23,23 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 Examples:
-  %(prog)s program.cio --output-ast
-  %(prog)s program.cio --output-llvm -O2
-  %(prog)s program.cio --output-executable
+  %(prog)s program.cio                    # Run program with JIT (default)
+  %(prog)s program.cio --run              # Explicitly run with JIT
+  %(prog)s program.cio --output-llvm      # Generate LLVM IR file
+  %(prog)s program.cio --output-executable # Generate standalone binary
+  %(prog)s program.cio --output-ast       # Generate AST
 '''
     )
     
     parser.add_argument('input', nargs='?', help='Input Confuc-IO source file (.cio)')
+    parser.add_argument('--run', action='store_true',
+                       help='Execute program using JIT (default if no output specified)')
     parser.add_argument('--output-ast', action='store_true',
                        help='Generate and save AST')
     parser.add_argument('--output-llvm', action='store_true',
                        help='Generate and save LLVM IR')
     parser.add_argument('--output-executable', action='store_true',
-                       help='Generate executable binary')
+                       help='Generate executable binary (AOT compilation)')
     parser.add_argument('-O0', dest='opt_level', action='store_const', const=0,
                        help='No optimization (default)')
     parser.add_argument('-O1', dest='opt_level', action='store_const', const=1,
@@ -105,42 +109,58 @@ Examples:
             print(f"✗ Semantic error: {e}", file=sys.stderr)
             return 1
         
-        # Step 4: Code Generation (if requested)
-        if args.output_llvm or args.output_executable:
-            from confucio_codegen import CodeGenerator, CodeGenError
+        # Step 4: Code Generation and/or Execution
+        from confucio_codegen import CodeGenerator, CodeGenError
+        
+        print("\nGenerating LLVM IR...")
+        codegen = CodeGenerator()
+        try:
+            llvm_ir = codegen.generate(ast)
+            print("✓ LLVM IR generated successfully")
             
-            print("\nGenerating LLVM IR...")
-            codegen = CodeGenerator()
-            try:
-                llvm_ir = codegen.generate(ast)
-                print("✓ LLVM IR generated successfully")
-                
-                if args.opt_level > 0:
-                    print(f"Applying optimization level: -O{args.opt_level}")
-                    llvm_ir = codegen.optimize(args.opt_level)
-                    print("✓ Optimization complete")
-                
-                if args.output_llvm:
-                    llvm_file = input_path.with_suffix('.ll')
-                    with open(llvm_file, 'w') as f:
-                        f.write(llvm_ir)
-                    print(f"✓ LLVM IR saved to {llvm_file}")
-                
-                if args.output_executable:
-                    exe_file = input_path.with_suffix('')
-                    print(f"\nGenerating executable: {exe_file}")
-                    try:
-                        codegen.generate_executable(exe_file)
-                    except CodeGenError as e:
-                        print(f"✗ {e}", file=sys.stderr)
-                        return 1
+            # Apply optimization if requested
+            if args.opt_level > 0:
+                print(f"Applying optimization level: -O{args.opt_level}")
+                llvm_ir = codegen.optimize(args.opt_level)
+                print("✓ Optimization complete")
             
-            except CodeGenError as e:
-                print(f"✗ Code generation error: {e}", file=sys.stderr)
-                return 1
-        else:
-            print(f"\n✓ Compilation complete")
-            print(f"  Optimization level: -O{args.opt_level}")
+            # Save LLVM IR if requested
+            if args.output_llvm:
+                llvm_file = input_path.with_suffix('.ll')
+                with open(llvm_file, 'w') as f:
+                    f.write(llvm_ir)
+                print(f"✓ LLVM IR saved to {llvm_file}")
+            
+            # Generate executable if requested (AOT compilation)
+            if args.output_executable:
+                exe_file = input_path.with_suffix('')
+                print(f"\nGenerating executable: {exe_file}")
+                try:
+                    codegen.generate_executable(exe_file)
+                except CodeGenError as e:
+                    print(f"✗ {e}", file=sys.stderr)
+                    return 1
+            
+            # Execute with JIT if --run or no output flags
+            should_run = args.run or not (args.output_llvm or args.output_executable or args.output_ast)
+            
+            if should_run:
+                print("\nExecuting program via JIT...")
+                print("-" * 60)
+                try:
+                    exit_code = codegen.execute()
+                    print("-" * 60)
+                    print(f"✓ Program exited with code: {exit_code}")
+                except Exception as e:
+                    print("-" * 60)
+                    print(f"✗ Execution error: {e}", file=sys.stderr)
+                    import traceback
+                    traceback.print_exc()
+                    return 1
+        
+        except CodeGenError as e:
+            print(f"✗ Code generation error: {e}", file=sys.stderr)
+            return 1
         
         return 0
         

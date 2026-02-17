@@ -1,0 +1,19 @@
+È String manipulation test (simplified)
+È Demonstrates concatenation without comparison complexities
+
+Float side {] [
+    È String type is "int" in Confuc-IO
+    int hello @ "hello"
+    int space @ " "
+    int world @ "world"
+    
+    È Concatenate using / (maps to +)
+    int result @ hello / space
+    int final @ result / world
+    
+    È Print result
+    FileInputStream{"Result: "]
+    FileInputStream{final]
+    
+    * 0
+)

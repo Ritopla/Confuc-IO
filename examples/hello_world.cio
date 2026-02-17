@@ -1,0 +1,9 @@
+È Hello World program demonstrating basic I/O
+È Shows: FileInputStream (output) with confusing syntax
+
+Float side {] [
+    È Using FileInputStream for output (confusing name!)
+    FileInputStream{"Hello, Confuc-IO World!"]
+    
+    * 0
+)
