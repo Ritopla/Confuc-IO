@@ -1,7 +1,5 @@
 # Confuc-IO Compiler Testing Guide
 
-This guide provides a comprehensive step-by-step approach to test all features of the Confuc-IO compiler using a Fibonacci algorithm and various test cases.
-
 ## Prerequisites
 
 ```bash
@@ -11,531 +9,197 @@ pip3 install -r requirements.txt
 
 ---
 
-## Part 1: Testing Basic Functionality
+## Part 1: Basic Functionality
 
 ### Step 1: Verify Mappings
-
-First, verify that all language mappings are correctly defined:
 
 ```bash
 python3 cli.py --verify-mappings
 ```
 
-**Expected Output:**
+This prints all keyword, type, operator, and delimiter mappings and confirms they are defined correctly.
 
-- ✓ All mappings displayed correctly
-- ✓ "All mappings are valid!" message
+### Step 2: Parse and Build AST
 
-**What this tests:** Mapping system integrity
+Test the full pipeline (parse + AST build + semantic analysis) on an example:
+
+```bash
+python3 cli.py examples/calculator.cio --output-ast --output-parse-tree
+```
+
+This produces two files:
+- `examples/calculator.pt` — the Lark **Parse Tree** (grammar rule names + Confuc-IO tokens)
+- `examples/calculator.ast` — the **AST** (clean program structure with Confuc-IO types and operators)
+
+Inspect the Parse Tree:
+```bash
+cat examples/calculator.pt
+```
+You should see rule names like `while_loop`, `op_add`, `if_statement` with Confuc-IO token values like `return`, `/`, `func`.
+
+Inspect the AST:
+```bash
+cat examples/calculator.ast
+```
+You should see node types like `While:`, `If:`, `Print:` with Confuc-IO symbols like `/`, `#`, `@@`.
+
+### Step 3: Test Other Examples
+
+```bash
+python3 cli.py examples/hello_world.cio
+python3 cli.py examples/arithmetic.cio
+python3 cli.py examples/fibonacci.cio
+python3 cli.py examples/strings.cio
+```
+
+Each should parse, build AST, pass semantic analysis, generate LLVM IR, and execute via JIT.
 
 ---
 
-### Step 2: Parse Fibonacci Program
+## Part 2: Compiler Options
 
-Test the lexer and parser with the Fibonacci example:
-
-```bash
-python3 cli.py examples/fibonacci.cio --output-ast
-```
-
-**Expected Output:**
-
-- ✓ "Parsing successful"
-- ✓ AST saved to `examples/fibonacci.ast`
-
-**What this tests:**
-
-- Lexical analysis (tokenization)
-- Syntactic analysis (parsing)
-- AST generation
-- Operator usage (/ for addition, @ for assignment)
-
-**Note:** The current Fibonacci example shows the Fibonacci algorithm **without** full loop/conditional support, as those require more advanced grammar features. It demonstrates the key operators and variable handling that would be used in the full implementation.
-
-**Verify:** Check the generated AST file:
-
-```bash
-cat examples/fibonacci.ast
-```
-
-You should see a properly structured parse tree with all keywords, operators, and delimiters recognized.
-
----
-
-### Step 3: Parse Arithmetic Example
-
-Test with arithmetic operations:
-
-```bash
-python3 cli.py examples/arithmetic.cio --output-ast
-```
-
-**What this tests:** Confusing operator mappings and basic arithmetic
-
----
-
-### Step 4: Parse String Example
-
-Test string manipulation:
-
-```bash
-python3 cli.py examples/strings.cio --output-ast
-```
-
-**What this tests:** String operations and concatenation
-
----
-
-## Part 2: Testing Compiler Options
-
-### Step 5: Test Optimization Levels
-
-The compiler supports 4 optimization levels:
-
-```bash
-# No optimization (default)
-python3 cli.py examples/fibonacci.cio -O0
-
-# Basic optimization
-python3 cli.py examples/fibonacci.cio -O1
-
-# Moderate optimization
-python3 cli.py examples/fibonacci.cio -O2
-
-# Aggressive optimization
-python3 cli.py examples/fibonacci.cio -O3
-```
-
-**Expected Output:** Each should parse successfully with the specified optimization level displayed.
-
-**What this tests:** Optimization flag handling
-
----
-
-### Step 6: Test LLVM IR Output Flag
+### LLVM IR Output
 
 ```bash
 python3 cli.py examples/fibonacci.cio --output-llvm
 ```
 
-**Expected Output:**
+Produces `examples/fibonacci.ll` — the generated LLVM IR. Inspect it to verify:
+- `Float` → `i32`, `int` → `i8*`, `String` → `double`, `While` → `i1`
+- `/` → `add`, `~` → `sub`, `Bool` → `mul`, `+` → `sdiv`
+- `side` → `main`
+
+### Optimization Levels
+
+```bash
+python3 cli.py examples/fibonacci.cio -O0   # No optimization (default)
+python3 cli.py examples/fibonacci.cio -O1   # Basic
+python3 cli.py examples/fibonacci.cio -O2   # Moderate
+python3 cli.py examples/fibonacci.cio -O3   # Aggressive
 ```
-✓ LLVM IR generated successfully
-✓ LLVM IR saved to examples/fibonacci.ll
-```
 
-**What this tests:** LLVM IR output option
-
----
-
-### Step 7: Test Executable Output Flag
+### Executable Output
 
 ```bash
 python3 cli.py examples/fibonacci.cio --output-executable
 ```
 
-**Expected Output:**
-```
-✓ Executable generated successfully
-✓ Saved to examples/fibonacci
+Requires `llc` and `clang` to be installed (e.g., `brew install llvm` on macOS).
+
+### Combining Flags
+
+```bash
+python3 cli.py examples/fibonacci.cio --output-ast --output-parse-tree --output-llvm -O2
 ```
 
-**Note:** AOT compilation may require additional LLVM tools to be installed.
-
-**What this tests:** Executable output option
+When output flags are present, JIT is skipped unless `--run` is also specified.
 
 ---
 
-### Step 8: Combine Options
+## Part 3: Error Handling
 
-Test multiple flags together:
+The compiler catches errors at different phases:
 
-```bash
-python3 cli.py examples/fibonacci.cio --output-ast --output-llvm -O2
-```
+### Parse Errors
 
-**What this tests:** Multiple compiler options working together
+Syntax errors are caught by Lark and reported with line/column information.
 
----
-
-## Part 3: Testing Error Handling
-
-### Step 9: Missing Main Function Error
+### Semantic Errors
 
 ```bash
+# Missing main function (no "side" function)
 python3 cli.py tests/fixtures/errors/missing_main.cio
-```
 
-**Expected Output:**
-
-- ✗ Parse error about main function not being named 'side'
-
-**What this tests:** Main function name validation
-
----
-
-### Step 10: Undeclared Variable Error
-
-```bash
+# Undeclared variable
 python3 cli.py tests/fixtures/errors/undeclared_variable.cio
-```
 
-**Expected Output:**
-
-- Should parse successfully (this is a parse-time test, semantic errors would be caught later)
-
-**What this tests:** Parser handles syntactically valid but semantically invalid code
-
----
-
-### Step 11: Variable Shadowing Error
-
-```bash
+# Variable shadowing (redeclaration)
 python3 cli.py tests/fixtures/errors/shadowing.cio
-```
 
-**Expected Output:**
-
-- Should parse successfully (semantic analysis would catch this)
-
-**What this tests:** Single global scope enforcement (at semantic level)
-
----
-
-### Step 12: Type Mismatch Error
-
-```bash
+# Type mismatch
 python3 cli.py tests/fixtures/errors/type_mismatch.cio
-```
 
-**Expected Output:**
-
-- Should parse successfully (semantic analysis would catch type errors)
-
-**What this tests:** Type checking (at semantic level)
-
----
-
-### Step 13: Uninitialized Variable Error
-
-```bash
+# Uninitialized variable
 python3 cli.py tests/fixtures/errors/uninitialized.cio
 ```
 
-**Expected Output:**
-
-- Should parse (semantic analysis would catch uninitialized use)
-
-**What this tests:** Initialization verification (at semantic level)
+These should all pass parsing but fail at semantic analysis with clear error messages.
 
 ---
 
-## Part 4: Testing Language Features with Fibonacci
+## Part 4: Automated Tests
 
-The Fibonacci example (`examples/fibonacci.cio`) demonstrates ALL major language features:
-
-### Feature 1: Keyword Mappings
-
-**In the code:**
-
-```confuc-io
-func {n @@ 0] [     È func = if, @@ = ==
-Return {i # n] [    È Return = while, # = <
-```
-
-**Tests:**
-
-- ✓ `func` keyword → if statement
-- ✓ `Return` keyword → while loop
-- ✓ `*` keyword → return statement
-
-### Feature 2: Type Mappings
-
-**In the code:**
-
-```confuc-io
-Float n @ 10        È Float in Confuc-IO = int in conventional
-```
-
-**Tests:**
-
-- ✓ `Float` type → int
-
-### Feature 3: Operator Mappings
-
-**In the code:**
-
-```confuc-io
-curr @ curr / prev  È / in Confuc-IO = + in conventional
-i @ i / 1           È / means addition
-Float temp @ curr   È @ in Confuc-IO = = in conventional
-```
-
-**Tests:**
-
-- ✓ `/` operator → addition
-- ✓ `@` operator → assignment
-- ✓ `@@` operator → equality
-- ✓ `#` operator → less than
-- ✓ `~` operator → subtraction (if used)
-
-### Feature 4: Delimiter Mappings
-
-**In the code:**
-
-```confuc-io
-{Float n] [         È { = (, ] = ), [ = {
-)                   È ) = }
-```
-
-**Tests:**
-
-- ✓ `{` delimiter → `(`
-- ✓ `]` delimiter → `)`
-- ✓ `[` delimiter → `{`
-- ✓ `)` delimiter → `}`
-
-### Feature 5: Comments
-
-**In the code:**
-
-```confuc-io
-È This is a comment
-È Main function
-```
-
-**Tests:**
-
-- ✓ `È` symbol → comment
-
-### Feature 6: Functions
-
-**In the code:**
-
-```confuc-io
-Float fibonacci {Float n] [
-    È function body
-)
-```
-
-**Tests:**
-
-- ✓ Function definitions
-- ✓ Parameters
-- ✓ Return values
-- ✓ Function calls
-
-### Feature 7: Control Flow
-
-**In the code:**
-
-- If statements: `func {n @@ 0] [`
-- While loops: `Return {i # n] [`
-
-**Tests:**
-
-- ✓ Conditional statements
-- ✓ Loops
-
----
-
-## Part 5: Automated Testing
-
-### Step 14: Run All Unit Tests
+### Run All Tests
 
 ```bash
 pytest tests/ -v
 ```
 
-**Expected Output:**
-
-- ✓ 29 tests passed
-  - 26 mapping tests
-  - 3 code generation tests
-
-**What this tests:**
-
-- All keyword mappings
-- All type mappings
-- All operator mappings
-- All delimiter mappings
-- Code generation with operator translation
-
----
-
-### Step 15: Run Specific Test Suites
-
-**Mapping tests only:**
+### Run Specific Test Files
 
 ```bash
+# Mapping tests
 pytest tests/test_mappings.py -v
-```
 
-**Code generation tests only:**
-
-```bash
+# Code generation tests
 pytest tests/test_codegen.py -v
 ```
 
+### Run Component Self-Tests
+
+Each source file has a `__main__` block for quick testing:
+
+```bash
+cd src && python3 confucio_parser.py       # Parses a test program
+cd src && python3 confucio_ast_builder.py   # Builds AST from test program
+cd src && python3 confucio_semantic.py      # Runs semantic analysis on a test AST
+cd src && python3 confucio_codegen.py       # Generates LLVM IR from a test AST
+cd src && python3 confucio_mappings.py      # Prints all mappings
+```
+
 ---
 
-## Part 6: Verifying Operator Mapping in Code Generation
+## Part 5: Testing the Code Generation Pipeline
 
-### Step 16: Direct Code Generation Test
+### Verify Operator Mapping
 
-Run the code generation test script:
+Run the code generation tests to confirm operators are correctly translated:
 
 ```bash
 python3 tests/test_codegen.py
 ```
 
-**Expected Output:**
+Expected: all Confuc-IO operators map to the correct LLVM instructions:
+- `/` → `add`, `~` → `sub`, `Bool` → `mul`, `+` → `sdiv`
+- `=` → `icmp >`, `#` → `icmp <`, `@@` → `icmp ==`
 
-```
-=== Testing Operator Mapping in Code Generation ===
-✓ Confuc-IO '/' → Conventional '+' → LLVM 'add'
-✓ Confuc-IO '~' → Conventional '-' → LLVM 'sub'
-
-=== Testing All Arithmetic Operators ===
-✓ /      (Confuc-IO) → +  (conventional) → add  (LLVM)
-✓ ~      (Confuc-IO) → -  (conventional) → sub  (LLVM)
-✓ Bool   (Confuc-IO) → *  (conventional) → mul  (LLVM)
-✓ +      (Confuc-IO) → /  (conventional) → sdiv (LLVM)
-
-=== Testing Comparison Operators ===
-✓ =   (Confuc-IO) → >  (conventional) → icmp in LLVM
-✓ #   (Confuc-IO) → <  (conventional) → icmp in LLVM
-✓ @@  (Confuc-IO) → == (conventional) → icmp in LLVM
-
-✓ ALL CODE GENERATION TESTS PASSED!
-```
-
-**What this tests:** Operator mappings are correctly applied during LLVM IR generation
-
----
-
-### Step 17: Inspect Generated LLVM IR
-
-Directly run the code generator on a simple AST:
+### Inspect Generated IR
 
 ```bash
-cd src && python3 confucio_codegen.py
+python3 cli.py examples/arithmetic.cio --output-llvm
+cat examples/arithmetic.ll
 ```
 
-**Expected Output:**
-
-- LLVM IR showing `add` instruction for Confuc-IO `/` operator
-- LLVM IR showing `sub` instruction for Confuc-IO `~` operator
-
-**What this tests:** Code generation produces correct LLVM instructions
-
----
-
-## Part 7: Advanced Testing
-
-### Step 18: Test Semantic Analyzer
-
-Run the semantic analyzer directly:
-
-```bash
-cd src && python3 confucio_semantic.py
-```
-
-**Expected Output:**
-
-- ✓ Semantic analysis passed
-- Symbol table displayed
-
-**What this tests:**
-
-- Variable declaration tracking
-- Type checking
-- Scope management
-- Initialization verification
-
----
-
-### Step 19: Test Parser Directly
-
-Run the parser on various inputs:
-
-```bash
-cd src && python3 confucio_parser.py
-```
-
-**What this tests:** Parser handles all grammar rules
-
----
-
-### Step 20: Test Compiler Orchestrator
-
-Run the full compiler:
-
-```bash
-cd src && python3 confucio_compiler.py
-```
-
-**Expected Output:**
-
-- ✓ Compilation successful
-- Parse tree displayed
-
-**What this tests:** Full compilation pipeline coordination
-
----
-
-## Summary: What Each Test Validates
-
-| Test  | Component      | What It Verifies                   |
-| ----- | -------------- | ---------------------------------- |
-| 1     | Mappings       | All mappings defined correctly     |
-| 2-4   | Parser         | Lexer + Parser + AST generation    |
-| 5-8   | CLI Options    | All flags work correctly           |
-| 9-13  | Error Handling | Various error cases detected       |
-| 14-15 | Unit Tests     | All mappings + code generation     |
-| 16-17 | Code Gen       | Operator mappings in LLVM IR       |
-| 18-20 | Components     | Individual component functionality |
+Verify the LLVM IR uses real instructions (`add`, `sub`, `mul`, `sdiv`) and real types (`i32`, `double`, `i8*`).
 
 ---
 
 ## Quick Test Checklist
 
-Run this complete sequence to test everything:
-
 ```bash
 # 1. Verify mappings
 python3 cli.py --verify-mappings
 
-# 2. Parse all examples
-python3 cli.py examples/fibonacci.cio --output-ast
-python3 cli.py examples/arithmetic.cio --output-ast
-python3 cli.py examples/strings.cio --output-ast
+# 2. Parse + AST + run all examples
+python3 cli.py examples/hello_world.cio
+python3 cli.py examples/arithmetic.cio
+python3 cli.py examples/fibonacci.cio
+python3 cli.py examples/strings.cio
+python3 cli.py examples/calculator.cio
 
-# 3. Test compiler options
-python3 cli.py examples/fibonacci.cio -O2 --output-llvm
+# 3. Generate outputs
+python3 cli.py examples/calculator.cio --output-ast --output-parse-tree --output-llvm
 
-# 4. Run all tests
+# 4. Run automated tests
 pytest tests/ -v
-
-# 5. Test code generation
-python3 tests/test_codegen.py
-
-# 6. Test components
-cd src && python3 confucio_codegen.py
-cd src && python3 confucio_semantic.py
-cd src && python3 confucio_compiler.py
 ```
-
-If all of these pass, your Confuc-IO compiler is working correctly!
-
----
-
-## Expected Final Results
-
-✅ **26 mapping tests passed**
-✅ **3 code generation tests passed**
-✅ **All examples parse successfully**
-✅ **All compiler options work**
-✅ **Operator mappings correctly applied in LLVM IR**
-
-**Total: 100% functionality verified!**

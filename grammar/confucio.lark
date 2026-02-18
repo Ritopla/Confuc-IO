@@ -72,14 +72,14 @@ expression_statement: expression
         | IDENTIFIER
         | delim_lparen expression delim_rparen
 
-// Keywords (mapped)
+// Keywords (not mapped)
 KEYWORD_FUNC: "func"
 KEYWORD_FOR: "for"
 KEYWORD_RETURN: "return"
 KEYWORD_IF: "if"
 KEYWORD_STAR: "*"
 
-// Types (mapped)
+// Types (not mapped)
 type: TYPE_FLOAT
     | TYPE_INT
     | TYPE_STRING

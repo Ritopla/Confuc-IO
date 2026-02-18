@@ -27,7 +27,8 @@ Examples:
   %(prog)s program.cio --run              # Explicitly run with JIT
   %(prog)s program.cio --output-llvm      # Generate LLVM IR file
   %(prog)s program.cio --output-executable # Generate standalone binary
-  %(prog)s program.cio --output-ast       # Generate AST
+  %(prog)s program.cio --output-ast       # Save the AST
+  %(prog)s program.cio --output-parse-tree # Save the Lark parse tree
 '''
     )
     
@@ -35,7 +36,9 @@ Examples:
     parser.add_argument('--run', action='store_true',
                        help='Execute program using JIT (default if no output specified)')
     parser.add_argument('--output-ast', action='store_true',
-                       help='Generate and save AST')
+                       help='Generate and save the AST (.ast)')
+    parser.add_argument('--output-parse-tree', action='store_true',
+                       help='Generate and save the Lark parse tree (.pt)')
     parser.add_argument('--output-llvm', action='store_true',
                        help='Generate and save LLVM IR')
     parser.add_argument('--output-executable', action='store_true',
@@ -80,11 +83,12 @@ Examples:
         parse_tree = confucio_parser.parse_file(str(input_path))
         print("✓ Parsing successful")
         
-        if args.output_ast:
-            ast_file = input_path.with_suffix('.ast')
-            with open(ast_file, 'w') as f:
+        # Save parse tree if requested
+        if args.output_parse_tree:
+            pt_file = input_path.with_suffix('.pt')
+            with open(pt_file, 'w') as f:
                 f.write(parse_tree.pretty())
-            print(f"✓ AST saved to {ast_file}")
+            print(f"✓ Parse tree saved to {pt_file}")
         
         # Step 2: Build AST
         from confucio_ast_builder import build_ast, ASTBuilderError
@@ -96,6 +100,14 @@ Examples:
         except ASTBuilderError as e:
             print(f"✗ AST building failed: {e}")
             return 1
+        
+        # Save AST if requested
+        if args.output_ast:
+            from confucio_ast import ast_to_string
+            ast_file = input_path.with_suffix('.ast')
+            with open(ast_file, 'w') as f:
+                f.write(ast_to_string(ast))
+            print(f"✓ AST saved to {ast_file}")
         
         # Step 3: Semantic Analysis
         from confucio_semantic import SemanticAnalyzer, SemanticError
@@ -142,7 +154,7 @@ Examples:
                     return 1
             
             # Execute with JIT if --run or no output flags
-            should_run = args.run or not (args.output_llvm or args.output_executable or args.output_ast)
+            should_run = args.run or not (args.output_llvm or args.output_executable or args.output_ast or args.output_parse_tree)
             
             if should_run:
                 print("\nExecuting program via JIT...")

@@ -2,264 +2,125 @@
 
 ## Overview
 
-The lexer and parser form the first phase of the Confuc-IO compiler, responsible for converting source code text into a structured parse tree.
+The parser is the first phase of the compiler. It reads Confuc-IO source code and produces a **Parse Tree** — a structured representation that reflects the grammar rules.
 
-## Technology Choice
+**Files:**
+- `src/confucio_parser.py` — Python wrapper around Lark
+- `grammar/confucio.lark` — The grammar definition
 
-**Tool:** [Lark Parser Generator](https://lark-parser.readthedocs.io/)
-**Algorithm:** LALR(1)
-**Grammar File:** `grammar/confucio.lark`
+## How It Works
 
-### Why Lark?
+The `ConfucIOParser` class loads the Lark grammar and exposes two methods:
 
-1. **Declarative Grammar:** Easy to read and maintain
-2. **Python Integration:** Native Python library
-3. **Good Error Messages:** Helpful for debugging
-4. **Tree Construction:** Automatic parse tree building
-5. **Flexibility:** Supports custom transformers
+```python
+parser = ConfucIOParser()
+tree = parser.parse(source_code)       # Parse a string
+tree = parser.parse_file("program.cio") # Parse a file
+```
 
-## Grammar Structure
+Lark handles both lexing (tokenization) and parsing in one step using the LALR(1) algorithm.
 
-The grammar is defined in EBNF (Extended Backus-Naur Form) syntax:
+## The Grammar
+
+The grammar in `confucio.lark` is written in EBNF and defines how Confuc-IO source code is structured. It is also where the first layer of mapping happens.
+
+### How the Grammar Handles Mappings
+
+The grammar defines **rules with logical names** that match **Confuc-IO symbols**:
 
 ```lark
-// Top level
-start: statement*
+// Operators: the rule name describes what the operator DOES
+op_add: "/"        // The "/" symbol means addition
+op_sub: "~"        // The "~" symbol means subtraction
+op_mul: "Bool"     // The word "Bool" means multiplication
+op_div: "+"        // The "+" symbol means division
 
-// Statements
-statement: variable_declaration
-         | assignment
-         | print_statement
-         | input_statement
-         | if_statement
-         | while_statement
-         | for_statement
-         | return_statement
-         | function_declaration
-
-// Expressions
-expression: binary_operation
-          | literal
-          | variable
-          | ...
+// Delimiters: the rule name describes the CONVENTIONAL role
+delim_lparen: "{"  // The "{" symbol means "("
+delim_rparen: "]"  // The "]" symbol means ")"
+delim_lbrace: "["  // The "[" symbol means "{"
+delim_rbrace: ")"  // The ")" symbol means "}"
 ```
 
-## Handling Confusing Delimiters
-
-### The Challenge
-
-Confuc-IO uses confusing delimiters:
-
-- `{` means `(`
-- `]` means `)`
-- `(` means `[`
-- `}` means `]`
-- `[` means `{`
-- `)` means `}`
-
-### Solution: Terminal Mapping
-
-We define terminals that match the confusing syntax:
+Keywords work similarly — the rule name describes the conventional meaning:
 
 ```lark
-// Delimiter terminals (confusing versions)
-LPAREN: "{"          // Actually means (
-RPAREN: "]"          // Actually means )
-LBRACKET: "("        // Actually means [
-RBRACKET: "}"        // Actually means ]
-LBRACE: "["          // Actually means {
-RBRACE: ")"          // Actually means }
+// "func" in source code is used for if-statements
+if_statement: KEYWORD_FUNC delim_lparen expression delim_rparen ...
+
+// "return" in source code is used for while-loops
+while_loop: KEYWORD_RETURN delim_lparen expression delim_rparen ...
+
+// "if" in source code is used for for-loops
+for_loop: KEYWORD_IF delim_lparen ...
 ```
 
-Then use them in rules where their conventional meaning is needed:
+### Types
+
+Types are **not mapped** in the grammar. They are stored as-is:
 
 ```lark
-function_declaration: TYPE_FLOAT MAIN_FUNCTION LPAREN RPAREN LBRACE statement* RBRACE
-//                                             {      ]       [      ...      )
+TYPE_FLOAT: "Float"     // Stays "Float" in the Parse Tree
+TYPE_INT: "int"         // Stays "int"
+TYPE_STRING: "String"   // Stays "String"
+TYPE_WHILE: "While"     // Stays "While"
 ```
 
-This allows the grammar to look conventional while accepting confusing syntax.
+### Expression Precedence
 
-## Lexical Analysis (Tokenization)
-
-### Token Categories
-
-1. **Keywords:** `func`, `for`, `return`, `if`, etc.
-2. **Types:** `Float`, `int`, `String`, `While`
-3. **Operators:** `/`, `~`, `+`, `Bool`, `@`, etc.
-4. **Delimiters:** `{`, `]`, `(`, `)`, etc.
-5. **Literals:** Numbers, strings
-6. **Identifiers:** Variable/function names
-7. **Comments:** Lines starting with `È`
-
-### Priority System
-
-Lark processes terminals in order of specificity:
-
-1. Keywords (most specific)
-2. Language operators
-3. Identifiers (catch-all for names)
-
-Example:
+Operator precedence is defined by nesting rules:
 
 ```lark
-// Keywords must come before identifiers
-TYPE_FLOAT: "Float"
-TYPE_INT: "int"
-// ...
-IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
+expression → comparison → additive → multiplicative → primary
 ```
 
-## Syntactic Analysis (Parsing)
+- **Lowest:** Comparison (`@@`, `=`, `#`)
+- **Medium:** Additive (`/`, `~`) — these are add/subtract
+- **Highest:** Multiplicative (`Bool`, `+`) — these are multiply/divide
 
-### Parse Tree Construction
+### Inline Rules
 
-Lark automatically builds a parse tree with:
-
-- **Nodes:** Rule names (e.g., `variable_declaration`)
-- **Leaves:** Terminal tokens (e.g., `TYPE_FLOAT`, `IDENTIFIER`)
-
-Example parse tree for `Float x @ 5`:
-
-```
-variable_declaration
-├── TYPE_FLOAT: "Float"
-├── IDENTIFIER: "x"
-├── OP_ASSIGN: "@"
-└── literal
-    └── INT_LIT: "5"
-```
-
-### Associativity & Precedence
-
-Binary operators use precedence levels:
+Rules prefixed with `?` are **inline rules** — Lark removes them from the tree when they have a single child. For example:
 
 ```lark
 ?expression: comparison
-
-?comparison: additive (("@@" | "!@") additive)?
-
-?additive: multiplicative (("/" | "~") multiplicative)*
-
-?multiplicative: primary (("Bool" | "+") primary)*
-
-?primary: literal | variable | "(" expression ")"
+?primary: INTEGER | IDENTIFIER | ...
 ```
 
-- **Lowest precedence:** Comparison (`@@`, `!@`)
-- **Medium:** Additive (`/`, `~`)
-- **High:** Multiplicative (`Bool`, `+`)
-- **Highest:** Primary (literals, variables, parentheses)
+This keeps the tree clean by avoiding unnecessary wrapper nodes.
 
-## Error Handling
+## The Parse Tree
 
-### Syntax Errors
+The output is a Lark `Tree` object. Each node has:
+- A **rule name** (e.g., `while_loop`, `op_add`, `var_declaration`)
+- **Children** that are either sub-trees (other rules) or `Token` objects (terminal values)
 
-Lark provides detailed error messages:
+### Example
+
+For the source code `Float x @ 5 / 3`:
 
 ```
-Unexpected token Token('SEMICOLON', ';') at line 5, column 10.
-Expected one of:
-    * TYPE_FLOAT
-    * TYPE_INT
-    * ...
+var_declaration
+  type  Float
+  x
+  op_assign
+  additive
+    5
+    op_add
+    3
 ```
 
-### Location Tracking
+Notice:
+- The rule name `op_add` tells you this is addition
+- The leaf value `/` is the actual Confuc-IO symbol (visible if you print the token)
+- The type `Float` is stored as-is (not mapped)
 
-Every token includes:
+You can save the Parse Tree with `--output-parse-tree` (saved as `.pt` file).
 
-- **Line number**
-- **Column number**
-- **Character position**
+## What the Parser Does NOT Do
 
-This enables precise error reporting.
+- It does **not** map types (`Float` stays `Float`)
+- It does **not** create the AST (that's the next phase)
+- It does **not** check semantics (no type checking, no scope validation)
 
-## Implementation Details
-
-### Parser Class
-
-[confucio_parser.py](file:///Users/ritopla/Desktop/ILP/Confuc-IO/src/confucio_parser.py)
-
-```python
-class ConfucIOParser:
-    def __init__(self):
-        grammar_path = Path(__file__).parent.parent / 'grammar' / 'confucio.lark'
-        self.parser = Lark.open(
-            grammar_path,
-            parser='lalr',
-            start='start',
-            propagate_positions=True
-        )
-  
-    def parse(self, source_code: str):
-        return self.parser.parse(source_code)
-```
-
-### Key Features
-
-1. **Position Propagation:** `propagate_positions=True` tracks source locations
-2. **LALR Parser:** Fast, efficient for most grammars
-3. **Start Symbol:** `start` rule defines entry point
-
-## Design Decisions
-
-### Why Not Write a Custom Lexer/Parser?
-
-**Reasons for using Lark:**
-
-1. **Time Efficiency:** Grammar-based approach is faster to develop
-2. **Maintainability:** Easier to modify grammar than custom code
-3. **Correctness:** Parser generators are well-tested
-4. **Features:** Built-in error recovery and tree construction
-
-### Why LALR vs LL or LR?
-
-**LALR chosen because:**
-
-1. **Performance:** Faster than full LR
-2. **Memory:** Smaller parse tables than LR
-3. **Coverage:** Handles most programming language grammars
-4. **Lark Support:** Well-supported in Lark
-
-## Common Issues & Solutions
-
-### Issue 1: Delimiter Confusion
-
-**Problem:** Mixing up which delimiter to use
-**Solution:** Always use the confusing delimiter in the source; grammar handles the mapping
-
-### Issue 2: Operator Ambiguity
-
-**Problem:** Operator precedence unclear
-**Solution:** Explicit precedence levels in grammar
-
-### Issue 3: Comment Parsing
-
-**Problem:** Comments breaking tokenization
-**Solution:** Comments handled as ignored tokens with `%ignore` directive
-
-## Testing
-
-### Unit Tests
-
-[tests/unit/test_parser.py](file:///Users/ritopla/Desktop/ILP/Confuc-IO/tests/unit/) (if exists)
-
-Tests include:
-
-- Valid syntax parsing
-- Error detection
-- Token extraction
-- Tree structure validation
-
-### Test Fixtures
-
-[tests/fixtures/basic/](file:///Users/ritopla/Desktop/ILP/Confuc-IO/tests/fixtures/basic/)
-
-Simple programs to verify parsing correctness.
-
-## Next Step
-
-After parsing, the parse tree is transformed into an AST by the AST Builder.
-
-→ [Next: AST Design](file:///Users/ritopla/Desktop/ILP/Confuc-IO/docs/architecture/ast.md)
+The Parse Tree is a direct structural representation of the grammar rules applied to the source code.

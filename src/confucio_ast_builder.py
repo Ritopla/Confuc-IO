@@ -5,7 +5,7 @@ Transforms Lark parse tree into Confuc-IO AST nodes.
 This bridges the parser output with semantic analysis and code generation.
 """
 
-from lark import Transformer, Token, Tree
+from lark import Transformer, Token
 from confucio_ast import *
 
 

@@ -1,98 +1,19 @@
-start
-  function_def
-    type	Float
-    side
-    delim_lparen
-    delim_rparen
-    delim_lbrace
-    var_declaration
-      type	Float
-      n
-      op_assign
-      10
-    var_declaration
-      type	Float
-      prev
-      op_assign
-      0
-    var_declaration
-      type	Float
-      curr
-      op_assign
-      1
-    var_declaration
-      type	Float
-      i
-      op_assign
-      2
-    var_declaration
-      type	Float
-      temp
-      op_assign
-      curr
-    assignment
-      curr
-      op_assign
-      additive
-        curr
-        op_add
-        prev
-    assignment
-      prev
-      op_assign
-      temp
-    assignment
-      i
-      op_assign
-      additive
-        i
-        op_add
-        1
-    assignment
-      temp
-      op_assign
-      curr
-    assignment
-      curr
-      op_assign
-      additive
-        curr
-        op_add
-        prev
-    assignment
-      prev
-      op_assign
-      temp
-    assignment
-      i
-      op_assign
-      additive
-        i
-        op_add
-        1
-    assignment
-      temp
-      op_assign
-      curr
-    assignment
-      curr
-      op_assign
-      additive
-        curr
-        op_add
-        prev
-    assignment
-      prev
-      op_assign
-      temp
-    assignment
-      i
-      op_assign
-      additive
-        i
-        op_add
-        1
-    return_statement
-      *
-      curr
-    delim_rbrace
+Program:
+  FunctionDef: Float side()
+    VarDecl: Float n = 10
+    VarDecl: Float prev = 0
+    VarDecl: Float curr = 1
+    VarDecl: Float i = 2
+    VarDecl: Float temp = curr
+    Assignment: curr = (curr / prev)
+    Assignment: prev = temp
+    Assignment: i = (i / 1)
+    Assignment: temp = curr
+    Assignment: curr = (curr / prev)
+    Assignment: prev = temp
+    Assignment: i = (i / 1)
+    Assignment: temp = curr
+    Assignment: curr = (curr / prev)
+    Assignment: prev = temp
+    Assignment: i = (i / 1)
+    Return: curr

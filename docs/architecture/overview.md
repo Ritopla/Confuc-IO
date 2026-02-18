@@ -1,141 +1,148 @@
 # Compiler Architecture Overview
 
-## Introduction
-
-The Confuc-IO compiler is a multi-phase compiler that translates Confuc-IO source code (with intentionally confusing mappings) into executable machine code. It uses LLVM as the backend and supports both JIT and AOT compilation.
-
 ## Pipeline
 
+The Confuc-IO compiler transforms source code into executable machine code through five phases. Each phase handles the "confusing" mappings differently — this is a key detail to understand.
+
 ```
-Source Code (.cio)
-    ↓
-┌───────────────┐
-│ Lexer/Parser  │ → Tokens + Parse Tree (Lark)
-└───────────────┘
-    ↓
-┌───────────────┐
-│ AST Builder   │ → Abstract Syntax Tree
-└───────────────┘
-    ↓
-┌───────────────┐
-│ Semantic      │ → Validated AST
-│ Analysis      │   (Type checking, scope validation)
-└───────────────┘
-    ↓
-┌───────────────┐
-│ Code          │ → LLVM IR
-│ Generation    │   (Apply mappings, generate instructions)
-└───────────────┘
-    ↓
-    ├─→ JIT Execution (MCJIT) → Direct execution
-    └─→ AOT Compilation (llc + clang) → Executable binary
+Source (.cio) → Parser → Parse Tree → AST Builder → AST → Semantic Analysis → Code Generator → LLVM IR → JIT / AOT
 ```
 
-## Core Components
+The diagram below shows where each kind of mapping is applied:
 
-### 1. Lexer & Parser
-**File:** `src/confucio_parser.py`  
-**Grammar:** `grammar/confucio.lark`
+```
+                         ┌─────────────────────────────────────────────────────────────────────────┐
+                         │                     MAPPING STRATEGY                                    │
+                         ├───────────────┬──────────────────┬────────────────┬──────────────────────┤
+                         │    Parser     │   AST Builder    │   Semantics    │   Code Generation    │
+                         ├───────────────┼──────────────────┼────────────────┼──────────────────────┤
+  Keywords:              │ Grammar maps  │ Node types are   │   —            │   —                  │
+  func→if, return→while  │ to rule names │ conventional     │                │                      │
+                         │ (while_loop)  │ (WhileLoop)      │                │                      │
+                         ├───────────────┼──────────────────┼────────────────┼──────────────────────┤
+  Types:                 │  Kept as-is   │  Kept as-is      │ Mapped for     │ Mapped to LLVM       │
+  Float→int, int→string  │  ("Float")    │  ("Float")       │ type checking  │ (Float→i32)          │
+                         ├───────────────┼──────────────────┼────────────────┼──────────────────────┤
+  Operators:             │ Grammar maps  │  Kept as-is      │ Checked as-is  │ Mapped to real ops   │
+  / → +, ~ → -           │ to rule names │  ("/")           │ ("/")          │ (/→add instruction)  │
+                         │ (op_add)      │                  │                │                      │
+                         ├───────────────┼──────────────────┼────────────────┼──────────────────────┤
+  Delimiters:            │ Grammar maps  │  Discarded       │   —            │   —                  │
+  { → (, [ → {           │ to rule names │  (not in AST)    │                │                      │
+                         └───────────────┴──────────────────┴────────────────┴──────────────────────┘
+```
 
-- Uses Lark parser generator with LALR(1) algorithm
-- Tokenizes Confuc-IO source code
-- Builds parse tree from grammar
-- Handles confusing delimiters and symbols
+## Phase 1: Parser
 
-**Key Challenge:** Parsing confusing delimiters while maintaining correctness
+**Files:** `src/confucio_parser.py`, `grammar/confucio.lark`
 
-### 2. AST Builder
-**File:** `src/confucio_ast_builder.py`  
-**Nodes:** `src/confucio_ast.py`
+The parser uses Lark with the LALR(1) algorithm. The grammar file (`confucio.lark`) defines rules that give **logical names** to Confuc-IO constructs:
 
-- Transforms Lark parse tree into custom AST
-- Applies initial keyword/type mappings
-- Creates structured representation of the program
+- The `/` symbol matches the `op_add` rule (because `/` means addition in Confuc-IO)
+- The `return` keyword matches the `KEYWORD_RETURN` terminal, used in the `while_loop` rule
+- The `{` delimiter matches the `delim_lparen` rule (because `{` means `(` in Confuc-IO)
 
-**Key Challenge:** Designing AST nodes that represent both Confuc-IO syntax and conventional semantics
+The **output** is a Parse Tree where:
+- **Node names** are the grammar rule names (e.g., `while_loop`, `op_add`)
+- **Leaf values** are the original Confuc-IO tokens (e.g., `return`, `/`)
 
-### 3. Semantic Analyzer
+Use `--output-parse-tree` to save it as a `.pt` file.
+
+## Phase 2: AST Builder
+
+**Files:** `src/confucio_ast_builder.py`, `src/confucio_ast.py`
+
+The AST Builder is a Lark `Transformer` that walks the Parse Tree and creates Python dataclass objects. It does **not** apply any type or operator mappings — it reads the Parse Tree as-is.
+
+- **Statement node types** become conventional names (e.g., `while_loop` rule → `WhileLoop` class, `if_statement` rule → `IfStatement` class)
+- **Types** are kept as Confuc-IO names (e.g., `Float`, `int`, `While`)
+- **Operators** are kept as Confuc-IO symbols (e.g., `BinaryOp(operator='/')` means addition)
+- **Delimiters** are discarded (returned as `None`)
+
+Use `--output-ast` to save it as a `.ast` file.
+
+## Phase 3: Semantic Analysis
+
 **File:** `src/confucio_semantic.py`
 
-- Type checking with confusing type names
-- Scope validation (single global scope)
-- Variable initialization checks
-- No shadowing enforcement
+The semantic analyzer validates the AST. Because types are still in Confuc-IO form, it must work with Confuc-IO names:
 
-**Key Challenge:** Type checking where types have misleading names (Float = int, int = string, etc.)
+- A variable declared as `Float` is treated as an integer
+- A literal `5` (Python `int`) is mapped to the Confuc-IO type `Float`
+- A condition in an `IfStatement` should be of type `While` (which means `bool`)
+- Comparison operators (`=`, `#`, `@@`) return `While` (boolean)
 
-### 4. Code Generator
+The analyzer also checks: variable declaration before use, initialization before read, no shadowing (single global scope), and main function (`side`) existence.
+
+## Phase 4: Code Generation
+
 **File:** `src/confucio_codegen.py`
 
-- Generates LLVM IR from validated AST
-- Applies operator mappings (/ = +, ~ = -, etc.)
-- Handles I/O with C stdlib integration
-- String operations (concatenation, comparison)
+This is where all remaining mappings are finally applied:
 
-**Key Challenge:** Correctly mapping confusing operators to their actual operations
+- **Types** are mapped to LLVM: `Float` → `i32`, `int` → `i8*`, `String` → `double`, `While` → `i1`
+- **Operators** are mapped via `OPERATOR_MAPPINGS`: `/` → `add`, `~` → `sub`, `Bool` → `mul`, `+` → `sdiv`
+- **Function name** `side` is renamed to `main` for LLVM
 
-### 5. JIT Execution
-**File:** `src/confucio_codegen.py` (execute method)
+The code generator also:
+- Declares C stdlib functions (`printf`, `scanf`, `malloc`, `strlen`, `strcpy`, `strcat`)
+- Handles string concatenation and comparison
+- Supports I/O via `FileInputStream` (print) and `deleteSystem32` (input)
 
-- Uses llvmlite MCJIT engine
-- Links C standard library dynamically
-- Executes main() immediately
-- No external tools required
+## Phase 5: Execution
 
-**Key Challenge:** Dynamic symbol resolution for C library functions
+**File:** `src/confucio_codegen.py` (same file)
 
-## Design Principles
+Two execution modes:
 
-### 1. Separation of Concerns
-Each phase has a single responsibility:
-- Lexer/Parser: Syntax
-- AST Builder: Structure
-- Semantic: Meaning
-- CodeGen: Implementation
+- **JIT (default):** Uses LLVM MCJIT to compile and run in memory. No external tools needed.
+- **AOT (`--output-executable`):** Uses `llc` + `clang` to produce a standalone binary.
 
-### 2. Mapping Application Timing
-- **Keyword/Type mappings:** Applied during AST building
-- **Operator mappings:** Applied during code generation
-- **Delimiter mappings:** Handled by grammar
+## File Map
 
-### 3. Error Handling
-- Parse errors: Caught by Lark, reported with line/column
-- Semantic errors: Custom exceptions with meaningful messages
-- Code generation errors: Caught and reported before execution
+| File | Role |
+|:-----|:-----|
+| `cli.py` | Entry point, orchestrates the pipeline |
+| `grammar/confucio.lark` | Lark grammar with Confuc-IO syntax rules |
+| `src/confucio_parser.py` | Wraps Lark to parse `.cio` files |
+| `src/confucio_ast.py` | AST node definitions (dataclasses) |
+| `src/confucio_ast_builder.py` | Lark Transformer: Parse Tree → AST |
+| `src/confucio_mappings.py` | All mapping dictionaries |
+| `src/confucio_semantic.py` | Type checking, scope validation |
+| `src/confucio_codegen.py` | LLVM IR generation, JIT, AOT |
 
 ## Data Flow Example
 
-Consider: `Float x @ 5 / 3`
+For the source code `Float x @ 5 / 3`:
 
-1. **Lexer:** `[TYPE_FLOAT, IDENTIFIER, OP_ASSIGN, INT_LIT, OP_ADD, INT_LIT]`
-2. **Parser:** Parse tree with declaration and binary operation
-3. **AST Builder:** `VariableDeclaration(type='int', name='x', init=BinaryOp('+', 5, 3))`
-4. **Semantic:** Validates types, ensures `x` not already declared
-5. **CodeGen:** 
-   ```llvm
-   %x = alloca i32
-   %add = add i32 5, 3
-   store i32 %add, i32* %x
-   ```
-6. **JIT:** Executes immediately
-
-## File Organization
-
+**1. Parser** produces a Parse Tree:
 ```
-src/
-├── confucio_compiler.py      # Main compiler interface
-├── confucio_mappings.py      # Mapping definitions
-├── confucio_parser.py        # Parser (uses Lark)
-├── confucio_ast.py           # AST node definitions
-├── confucio_ast_builder.py   # Parse tree → AST
-├── confucio_semantic.py      # Semantic analysis
-└── confucio_codegen.py       # LLVM IR generation + JIT
+var_declaration
+  type  Float
+  x
+  op_assign
+  additive
+    5
+    op_add
+    3
 ```
 
-## Next Steps
+**2. AST Builder** produces:
+```
+VarDecl: Float x = (5 / 3)
+```
+Note: type is `Float` (Confuc-IO), operator is `/` (Confuc-IO for addition).
 
-- [Lexer & Parser Details](file:///Users/ritopla/Desktop/ILP/Confuc-IO/docs/architecture/lexer_parser.md)
-- [AST Design](file:///Users/ritopla/Desktop/ILP/Confuc-IO/docs/architecture/ast.md)
-- [Semantic Analysis](file:///Users/ritopla/Desktop/ILP/Confuc-IO/docs/architecture/semantic_analysis.md)
-- [Code Generation](file:///Users/ritopla/Desktop/ILP/Confuc-IO/docs/architecture/code_generation.md)
-- [JIT Execution](file:///Users/ritopla/Desktop/ILP/Confuc-IO/docs/architecture/jit_execution.md)
+**3. Semantic Analysis** checks:
+- `Float` is a valid type → maps internally to `int` for checking
+- Literal `5` has type `Float` (integer) ✓
+- Literal `3` has type `Float` (integer) ✓
+- `/` is an arithmetic operator, both sides match ✓
+
+**4. Code Generator** produces LLVM IR:
+```llvm
+%x = alloca i32
+%addtmp = add i32 5, 3
+store i32 %addtmp, i32* %x
+```
+Here `Float` → `i32` and `/` → `add`.

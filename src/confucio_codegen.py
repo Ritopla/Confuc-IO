@@ -147,8 +147,6 @@ class CodeGenerator:
         self.builder = ir.IRBuilder(block)
         self.current_function = function
         
-        # Store old variables and create new scope
-        old_variables = self.variables.copy()
         self.variables = {} # Clear for new function scope
         
         # Create allocas for parameters and store argument values

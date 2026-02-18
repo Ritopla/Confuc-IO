@@ -1,0 +1,385 @@
+start
+  function_def
+    type	Float
+    doAddition
+    delim_lparen
+    parameter_list
+      parameter
+        type	Float
+        a
+      parameter
+        type	Float
+        b
+    delim_rparen
+    delim_lbrace
+    return_statement
+      *
+      additive
+        a
+        op_add
+        b
+    delim_rbrace
+  function_def
+    type	Float
+    doSubtraction
+    delim_lparen
+    parameter_list
+      parameter
+        type	Float
+        a
+      parameter
+        type	Float
+        b
+    delim_rparen
+    delim_lbrace
+    return_statement
+      *
+      additive
+        a
+        op_sub
+        b
+    delim_rbrace
+  function_def
+    type	Float
+    doMultiplication
+    delim_lparen
+    parameter_list
+      parameter
+        type	Float
+        a
+      parameter
+        type	Float
+        b
+    delim_rparen
+    delim_lbrace
+    return_statement
+      *
+      multiplicative
+        a
+        op_mul
+        b
+    delim_rbrace
+  function_def
+    type	Float
+    doDivision
+    delim_lparen
+    parameter_list
+      parameter
+        type	Float
+        a
+      parameter
+        type	Float
+        b
+    delim_rparen
+    delim_lbrace
+    return_statement
+      *
+      multiplicative
+        a
+        op_div
+        b
+    delim_rbrace
+  function_def
+    type	Float
+    side
+    delim_lparen
+    delim_rparen
+    delim_lbrace
+    var_declaration
+      type	Float
+      choice
+      op_assign
+      0
+    var_declaration
+      type	Float
+      num1
+      op_assign
+      0
+    var_declaration
+      type	Float
+      num2
+      op_assign
+      0
+    var_declaration
+      type	Float
+      result
+      op_assign
+      0
+    while_loop
+      return
+      delim_lparen
+      comparison
+        choice
+        op_lt
+        5
+      delim_rparen
+      delim_lbrace
+      print_statement
+        delim_lparen
+        "========================================"
+        delim_rparen
+      print_statement
+        delim_lparen
+        "     CONFUC-IO CALCULATOR"
+        delim_rparen
+      print_statement
+        delim_lparen
+        "========================================"
+        delim_rparen
+      print_statement
+        delim_lparen
+        "Select an operation:"
+        delim_rparen
+      print_statement
+        delim_lparen
+        "1. Addition (/)"
+        delim_rparen
+      print_statement
+        delim_lparen
+        "2. Subtraction (~)"
+        delim_rparen
+      print_statement
+        delim_lparen
+        "3. Multiplication (Bool)"
+        delim_rparen
+      print_statement
+        delim_lparen
+        "4. Division (+)"
+        delim_rparen
+      print_statement
+        delim_lparen
+        "5. Exit"
+        delim_rparen
+      print_statement
+        delim_lparen
+        "========================================"
+        delim_rparen
+      print_statement
+        delim_lparen
+        "Enter your choice (1-5): "
+        delim_rparen
+      input_statement
+        delim_lparen
+        choice
+        delim_rparen
+      if_statement
+        func
+        delim_lparen
+        comparison
+          choice
+          op_gt
+          0
+        delim_rparen
+        delim_lbrace
+        if_statement
+          func
+          delim_lparen
+          comparison
+            choice
+            op_lt
+            5
+          delim_rparen
+          delim_lbrace
+          print_statement
+            delim_lparen
+            "Enter first number: "
+            delim_rparen
+          input_statement
+            delim_lparen
+            num1
+            delim_rparen
+          print_statement
+            delim_lparen
+            "Enter second number: "
+            delim_rparen
+          input_statement
+            delim_lparen
+            num2
+            delim_rparen
+          if_statement
+            func
+            delim_lparen
+            comparison
+              choice
+              op_eq
+              1
+            delim_rparen
+            delim_lbrace
+            assignment
+              result
+              op_assign
+              function_call
+                doAddition
+                delim_lparen
+                argument_list
+                  num1
+                  num2
+                delim_rparen
+            print_statement
+              delim_lparen
+              "Result: "
+              delim_rparen
+            print_statement
+              delim_lparen
+              num1
+              delim_rparen
+            print_statement
+              delim_lparen
+              " + "
+              delim_rparen
+            print_statement
+              delim_lparen
+              num2
+              delim_rparen
+            print_statement
+              delim_lparen
+              " = "
+              delim_rparen
+            print_statement
+              delim_lparen
+              result
+              delim_rparen
+            delim_rbrace
+          if_statement
+            func
+            delim_lparen
+            comparison
+              choice
+              op_eq
+              2
+            delim_rparen
+            delim_lbrace
+            assignment
+              result
+              op_assign
+              function_call
+                doSubtraction
+                delim_lparen
+                argument_list
+                  num1
+                  num2
+                delim_rparen
+            print_statement
+              delim_lparen
+              "Result: "
+              delim_rparen
+            print_statement
+              delim_lparen
+              num1
+              delim_rparen
+            print_statement
+              delim_lparen
+              " - "
+              delim_rparen
+            print_statement
+              delim_lparen
+              num2
+              delim_rparen
+            print_statement
+              delim_lparen
+              " = "
+              delim_rparen
+            print_statement
+              delim_lparen
+              result
+              delim_rparen
+            delim_rbrace
+          if_statement
+            func
+            delim_lparen
+            comparison
+              choice
+              op_eq
+              3
+            delim_rparen
+            delim_lbrace
+            assignment
+              result
+              op_assign
+              function_call
+                doMultiplication
+                delim_lparen
+                argument_list
+                  num1
+                  num2
+                delim_rparen
+            print_statement
+              delim_lparen
+              "Result: "
+              delim_rparen
+            print_statement
+              delim_lparen
+              num1
+              delim_rparen
+            print_statement
+              delim_lparen
+              " * "
+              delim_rparen
+            print_statement
+              delim_lparen
+              num2
+              delim_rparen
+            print_statement
+              delim_lparen
+              " = "
+              delim_rparen
+            print_statement
+              delim_lparen
+              result
+              delim_rparen
+            delim_rbrace
+          if_statement
+            func
+            delim_lparen
+            comparison
+              choice
+              op_eq
+              4
+            delim_rparen
+            delim_lbrace
+            assignment
+              result
+              op_assign
+              function_call
+                doDivision
+                delim_lparen
+                argument_list
+                  num1
+                  num2
+                delim_rparen
+            print_statement
+              delim_lparen
+              "Result: "
+              delim_rparen
+            print_statement
+              delim_lparen
+              num1
+              delim_rparen
+            print_statement
+              delim_lparen
+              " / "
+              delim_rparen
+            print_statement
+              delim_lparen
+              num2
+              delim_rparen
+            print_statement
+              delim_lparen
+              " = "
+              delim_rparen
+            print_statement
+              delim_lparen
+              result
+              delim_rparen
+            delim_rbrace
+          delim_rbrace
+        delim_rbrace
+      delim_rbrace
+    print_statement
+      delim_lparen
+      "Thank you for using Confuc-IO Calculator!"
+      delim_rparen
+    return_statement
+      *
+      0
+    delim_rbrace

@@ -2,352 +2,118 @@
 
 ## Overview
 
-The AST is an intermediate representation that captures the semantic structure of a Confuc-IO program, independent of the concrete syntax.
+The AST is the compiler's structured representation of the program after parsing. It strips away all syntax-level details (delimiters, keywords, grammar rule structure) and keeps only the meaningful program structure.
 
-## Purpose
+**Files:**
+- `src/confucio_ast.py` — AST node definitions (Python dataclasses)
+- `src/confucio_ast_builder.py` — Lark Transformer that builds the AST from the Parse Tree
 
-The AST serves as:
-1. **Abstraction:** Removes parsing details, focuses on meaning
-2. **Interface:** Clean boundary between frontend (parsing) and backend (code generation)
-3. **Analysis Target:** Used by semantic analyzer for type checking
-4. **IR Foundation:** Directly translates to LLVM IR
+## How the AST Builder Works
 
-## Node Design
-
-### Base Class
-
-All AST nodes inherit from a base `ASTNode` class:
+The AST Builder is a Lark `Transformer`. Each method corresponds to a grammar rule name and receives the already-transformed children:
 
 ```python
-class ASTNode:
-    """Base class for all AST nodes"""
-    pass
-```
-
-### Node Categories
-
-#### 1. Program Structure
-
-**Program**
-```python
-class Program(ASTNode):
-    statements: List[Statement]
-```
-- Top-level container
-- List of all statements
-
-#### 2. Declarations
-
-**VariableDeclaration**
-```python
-class VariableDeclaration(ASTNode):
-    var_type: str          # 'int', 'float', 'string', 'bool'
-    identifier: str        # Variable name
-    initializer: Expression | None
-```
-
-**FunctionDeclaration**
-```python
-class FunctionDeclaration(ASTNode):
-    return_type: str
-    name: str
-    parameters: List[Parameter]
-    body: List[Statement]
-```
-
-#### 3. Statements
-
-**Assignment**
-```python
-class Assignment(ASTNode):
-    identifier: str
-    value: Expression
-```
-
-**PrintStatement**
-```python
-class PrintStatement(ASTNode):
-    expressions: List[Expression]
-```
-
-**InputStatement**
-```python
-class InputStatement(ASTNode):
-    variable: str
-```
-
-**IfStatement**
-```python
-class IfStatement(ASTNode):
-    condition: Expression
-    then_body: List[Statement]
-    else_body: List[Statement] | None
-```
-
-**WhileStatement**
-```python
-class WhileStatement(ASTNode):
-    condition: Expression
-    body: List[Statement]
-```
-
-**ForStatement**
-```python
-class ForStatement(ASTNode):
-    init: VariableDeclaration | None
-    condition: Expression | None
-    increment: Assignment | None
-    body: List[Statement]
-```
-
-**ReturnStatement**
-```python
-class ReturnStatement(ASTNode):
-    value: Expression | None
-```
-
-#### 4. Expressions
-
-**BinaryOp**
-```python
-class BinaryOp(ASTNode):
-    operator: str        # '+', '-', '*', '/', '==', '>', '<', etc.
-    left: Expression
-    right: Expression
-```
-
-**UnaryOp**
-```python
-class UnaryOp(ASTNode):
-    operator: str        # '-', '!'
-    operand: Expression
-```
-
-**Variable**
-```python
-class Variable(ASTNode):
-    name: str
-```
-
-**Literal**
-```python
-class Literal(ASTNode):
-    literal_type: str    # 'int', 'float', 'string', 'bool'
-    value: Any
-```
-
-## Transformation Process
-
-### Parse Tree → AST
-
-The AST Builder ([confucio_ast_builder.py](file:///Users/ritopla/Desktop/ILP/Confuc-IO/src/confucio_ast_builder.py)) uses Lark's `Transformer` class:
-
-```python
-class ASTBuilder(Transformer):
-    def variable_declaration(self, items):
-        type_token, identifier, initializer = items
-        # Map confusing type to conventional type
-        conventional_type = TYPE_MAPPINGS.get(type_token.value, type_token.value)
-        return VariableDeclaration(
-            var_type=conventional_type,
-            identifier=str(identifier),
-            initializer=initializer
-        )
-```
-
-### Mapping Application
-
-**Type Mappings** are applied during AST construction:
-
-```python
-TYPE_MAPPINGS = {
-    'Float': 'int',      # Float in code → int in AST
-    'int': 'string',     # int in code → string in AST
-    'String': 'float',   # String in code → float in AST
-    'While': 'bool',     # While in code → bool in AST
-}
-```
-
-**Operator Mappings** are deferred to code generation.
-
-### Why Apply Type Mappings Early?
-
-**Reasons:**
-1. **Semantic Analysis:** Type checker works with conventional types
-2. **Simplicity:** Rest of compiler uses normal type names
-3. **Separation:** Confusing syntax vs. actual semantics
-
-## Design Rationale
-
-### Immutability
-
-AST nodes are designed to be **immutable** where possible:
-- Easier to reason about
-- Safer for concurrent processing
-- Simpler semantic analysis
-
-### Simplicity
-
-AST is intentionally simple:
-- No method complexity
-- Data-only structures
-- Easy to traverse
-
-### Conventional Representation
-
-After AST construction, the tree uses **conventional names**:
-- Types: `int`, `float`, `string`, `bool`
-- Operators: `+`, `-`, `*`, `/`, `==`, etc.
-
-This means:
-- `Float x @ 5` becomes `VariableDeclaration(var_type='int', name='x', init=Literal('int', 5))`
-- Semantic analyzer sees `int`, not `Float`
-
-## Traversal Patterns
-
-### Visitor Pattern
-
-The semantic analyzer uses visitor pattern:
-
-```python
-class SemanticAnalyzer:
-    def analyze(self, node: ASTNode):
-        method_name = f'analyze_{node.__class__.__name__}'
-        method = getattr(self, method_name, self.generic_analyze)
-        return method(node)
+class ConfucIOASTBuilder(Transformer):
+    def while_loop(self, items):
+        # "while_loop" rule → WhileLoop AST node
+        return WhileLoop(condition=..., body=...)
     
-    def analyze_VariableDeclaration(self, node: VariableDeclaration):
-        # Type-specific analysis
-        ...
+    def op_add(self, items):
+        # Returns the Confuc-IO symbol "/" as a string
+        return '/'
 ```
 
-### Recursive Descent
+### What Gets Mapped
 
-Code generator uses recursive descent:
+**Statement types** are mapped to conventional AST node classes:
+- `while_loop` rule → `WhileLoop` node
+- `if_statement` rule → `IfStatement` node
+- `for_loop` rule → `ForLoop` node
+- `return_statement` rule → `ReturnStatement` node
 
+This is a natural consequence of the grammar: the grammar rule is named `while_loop`, so the transformer method is `while_loop`, and it creates a `WhileLoop` object.
+
+### What Does NOT Get Mapped
+
+**Types** stay as Confuc-IO names:
 ```python
-def generate_statement(self, stmt: Statement):
-    if isinstance(stmt, VariableDeclaration):
-        return self.generate_variable_declaration(stmt)
-    elif isinstance(stmt, Assignment):
-        return self.generate_assignment(stmt)
-    # ...
+VarDeclaration(var_type='Float', name='x', initializer=...)
+# "Float" is kept — it is NOT mapped to "int" here
 ```
 
-## Example AST
-
-### Source Code
-```confucio
-Float x @ 5 / 3
-```
-
-### Parse Tree
-```
-variable_declaration
-├── TYPE_FLOAT: "Float"
-├── IDENTIFIER: "x"
-├── OP_ASSIGN: "@"
-└── binary_operation
-    ├── literal [INT_LIT: "5"]
-    ├── OP_ADD: "/"
-    └── literal [INT_LIT: "3"]
-```
-
-### AST
+**Operators** stay as Confuc-IO symbols:
 ```python
-VariableDeclaration(
-    var_type='int',           # Float mapped to int
-    identifier='x',
-    initializer=BinaryOp(
-        operator='/',         # Stored as source operator; mapped to '+' in codegen
-        left=Literal('int', 5),
-        right=Literal('int', 3)
-    )
-)
+BinaryOp(operator='/', left=..., right=...)
+# "/" is kept — it is NOT mapped to "+" here
 ```
 
-Note: Operator `/` is stored as-is in AST (keeping source fidelity), then mapped to `+` during code generation.
+**Delimiters** are discarded (returned as `None` by the transformer).
 
-## Benefits of This Design
+## AST Node Types
 
-### 1. Clean Separation
-- **Syntax → AST:** Removes parsing artifacts
-- **AST → IR:** Focuses on semantics
+### Program Structure
 
-### 2. Type Safety
-- Conventional types enable standard type checking
-- No confusion in semantic analysis
+| Node | Fields | Description |
+|:-----|:-------|:------------|
+| `Program` | `functions: List[FunctionDef]` | Root node |
+| `FunctionDef` | `return_type, name, parameters, body` | Function definition |
+| `Parameter` | `param_type, name` | Function parameter |
 
-### 3. Maintainability
-- Simple data structures
-- Easy to extend with new nodes
+### Statements
 
-### 4. Tooling Support
-- Easy to serialize/visualize
-- Straightforward debugging
+| Node | Fields | Description |
+|:-----|:-------|:------------|
+| `VarDeclaration` | `var_type, name, initializer` | Variable declaration |
+| `Assignment` | `name, value` | Assignment |
+| `IfStatement` | `condition, then_body, else_body` | If statement (from `func` keyword) |
+| `WhileLoop` | `condition, body` | While loop (from `return` keyword) |
+| `ForLoop` | `init, condition, update, body` | For loop (from `if` keyword) |
+| `ReturnStatement` | `value` | Return (from `*` keyword) |
+| `PrintStatement` | `expressions` | Print (from `FileInputStream`) |
+| `InputStatement` | `variable_name` | Input (from `deleteSystem32`) |
+| `ExpressionStatement` | `expression` | Expression used as statement |
 
-## Testing
+### Expressions
 
-### AST Construction Tests
+| Node | Fields | Description |
+|:-----|:-------|:------------|
+| `BinaryOp` | `operator, left, right` | Binary operation (operator is Confuc-IO symbol) |
+| `UnaryOp` | `operator, operand` | Unary operation |
+| `Literal` | `value, literal_type` | Literal value (`literal_type` is `'int'`, `'float'`, `'string'`, `'bool'`) |
+| `Identifier` | `name` | Variable reference |
+| `FunctionCall` | `function_name, arguments` | Function call |
 
-Verify correct transformation:
-```python
-def test_variable_declaration():
-    source = "Float x @ 5"
-    ast = parser.parse_and_build(source)
-    assert isinstance(ast, Program)
-    assert ast.statements[0].var_type == 'int'  # Mapped!
+## Example
+
+For the source `Float x @ 5 / 3`:
+
+**Parse Tree:**
+```
+var_declaration
+  type  Float
+  x
+  op_assign
+  additive
+    5
+    op_add
+    3
 ```
 
-### Node Structure Tests
-
-Verify node relationships:
-```python
-def test_binary_op_structure():
-    source = "Float x @ 5 / 3"
-    decl = parse_and_build(source).statements[0]
-    assert isinstance(decl.initializer, BinaryOp)
-    assert decl.initializer.operator == '+'  # Depends on when mapping occurs
+**AST (after transformation):**
+```
+VarDecl: Float x = (5 / 3)
 ```
 
-## Common Pitfalls
+In this AST:
+- `var_type` is `'Float'` (Confuc-IO name, not `'int'`)
+- The operator is `'/'` (Confuc-IO symbol, not `'+'`)
+- `literal_type` for `5` and `3` is `'int'` (Python's type, not the Confuc-IO type name)
 
-### Pitfall 1: Premature Operator Mapping
+You can save the AST with `--output-ast` (saved as `.ast` file).
 
-**Wrong:**
-```python
-# In AST builder
-operator = OPERATOR_MAPPINGS.get(op_token.value, op_token.value)
-return BinaryOp(operator=operator, ...)  # Too early!
-```
+## Design Notes
 
-**Right:**
-```python
-# Keep original operator in AST
-return BinaryOp(operator=op_token.value, ...)
-# Map during code generation
-```
-
-### Pitfall 2: Mutable Nodes
-
-**Wrong:**
-```python
-class IfStatement(ASTNode):
-    def add_else(self, else_body):
-        self.else_body = else_body  # Mutating!
-```
-
-**Right:**
-```python
-class IfStatement(ASTNode):
-    def __init__(self, condition, then_body, else_body=None):
-        self.condition = condition
-        self.then_body = then_body
-        self.else_body = else_body  # Immutable
-```
-
-## Next Step
-
-After AST construction, the semantic analyzer validates the tree.
-
-→ [Next: Semantic Analysis](file:///Users/ritopla/Desktop/ILP/Confuc-IO/docs/architecture/semantic_analysis.md)
+- The AST is built from Python **dataclasses** — simple, immutable data containers
+- All nodes inherit from `ASTNode`; statements from `Statement`; expressions from `Expression`
+- The `Literal` node's `literal_type` field uses Python type names (`'int'`, `'string'`) to describe the value, while `VarDeclaration.var_type` uses Confuc-IO type names (`'Float'`, `'int'`)
+- This asymmetry is resolved in the semantic analysis phase, where literal types are mapped to Confuc-IO type names for comparison

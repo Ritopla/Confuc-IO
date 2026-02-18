@@ -182,17 +182,16 @@ python3 -m pytest --cov=src tests/
 
 ## Architecture
 
-The compiler uses a multi-phase pipeline:
+The compiler uses a multi-phase pipeline with a specific strategy for handling the confusing mappings:
 
 ```
-Source (.cio) → Lexer/Parser → AST → Semantic Analysis → LLVM IR → JIT/AOT
+Source (.cio) → Lexer/Parser → Parse Tree → AST Builder → AST → Semantic Analysis → LLVM IR → JIT/AOT
 ```
 
-- **Lexer/Parser:** Uses Lark with LALR(1) algorithm
-- **AST Builder:** Transforms parse tree to abstract syntax tree
-- **Semantic Analyzer:** Type checking and validation
-- **Code Generator:** Produces LLVM IR with proper operator mappings
-- **JIT Execution:** Uses LLVM MCJIT for instant execution
+- **Lexer/Parser:** Uses Lark with LALR(1). The **Parse Tree** uses *Logical Rule Names* (e.g., `op_add`, `while_loop`) but contains *Confuc-IO Tokens* (e.g., `/`, `return`).
+- **AST Builder:** Transforms the Parse Tree into Python objects. The **AST** preserves the *Confuc-IO Symbols* (e.g., `BinaryOp` has operator `'/'`).
+- **Semantic Analyzer:** Performs type checking. It temporarily maps types (e.g., `Float` → `int`) to ensure correctness.
+- **Code Generator:** Performs the final translation from Confuc-IO terms to LLVM IR (e.g., `Float` → `i32`, `/` operator → `add` instruction).
 
 See [docs/architecture/overview.md](docs/architecture/overview.md) for details.
 

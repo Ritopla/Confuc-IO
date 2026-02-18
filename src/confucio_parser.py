@@ -4,7 +4,7 @@ Confuc-IO Parser
 Uses Lark to parse Confuc-IO source code according to the grammar.
 """
 
-from lark import Lark, Tree, Token
+from lark import Lark, Tree
 from pathlib import Path
 
 
