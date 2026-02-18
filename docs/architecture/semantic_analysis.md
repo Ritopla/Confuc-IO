@@ -2,9 +2,24 @@
 
 ## Overview
 
-The semantic analyzer validates the AST before code generation. It checks that the program is meaningful: types match, variables are declared and initialized, and functions are called correctly.
+The semantic analyzer validates the AST before code generation. It uses a **reflection-based visitor pattern**: for each AST node of type `Foo`, the method `visit_Foo` is looked up via `getattr` and called automatically.
 
 **File:** `src/confucio_semantic.py`
+
+## Visitor Pattern
+
+The central dispatch method uses Python reflection to find and call the appropriate visitor:
+
+```python
+def visit(self, node):
+    method_name = f'visit_{type(node).__name__}'
+    visitor = getattr(self, method_name, None)
+    if visitor is None:
+        raise SemanticError(f"No visitor method for: {type(node).__name__}")
+    return visitor(node)
+```
+
+Statement visitors (e.g., `visit_VarDeclaration`, `visit_WhileLoop`) return `None`. Expression visitors (e.g., `visit_Literal`, `visit_BinaryOp`) return the Confuc-IO type name as a string.
 
 ## The Type Challenge
 

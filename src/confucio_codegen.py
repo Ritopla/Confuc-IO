@@ -2,6 +2,8 @@
 Confuc-IO Code Generator
 
 Generates LLVM IR from Confuc-IO AST and provides JIT execution.
+Uses a reflection-based visitor pattern: each AST node type is handled
+by a visit_<ClassName> method, dispatched via getattr.
 """
 
 from llvmlite import ir, binding as llvm_binding
@@ -28,7 +30,7 @@ class CodeGenError(Exception):
 
 
 class CodeGenerator:
-    """LLVM IR code generator for Confuc-IO"""
+    """LLVM IR code generator for Confuc-IO using reflection-based visitor pattern"""
     
     def __init__(self):
         # LLVM initialization is now automatic in newer llvmlite versions
@@ -111,6 +113,19 @@ class CodeGenerator:
             raise CodeGenError(f"Unknown type: {confucio_type}")
         return self.type_map[confucio_type]
     
+    def visit(self, node):
+        """
+        Dispatch to the appropriate visit_<ClassName> method via reflection.
+        
+        For statement nodes, returns None.
+        For expression nodes, returns an ir.Value.
+        """
+        method_name = f'visit_{type(node).__name__}'
+        visitor = getattr(self, method_name, None)
+        if visitor is None:
+            raise CodeGenError(f"No visitor method for AST node type: {type(node).__name__}")
+        return visitor(node)
+    
     def generate(self, ast: Program) -> str:
         """Generate LLVM IR from AST"""
         # Generate all functions
@@ -164,7 +179,7 @@ class CodeGenerator:
         for stmt in func_def.body:
             if isinstance(stmt, ReturnStatement):
                 has_return = True
-            self.generate_statement(stmt)
+            self.visit(stmt)
         
         # Add default return if none exists
         if not has_return:
@@ -175,37 +190,10 @@ class CodeGenerator:
             else:
                 self.builder.ret_void()
     
-    def generate_statement(self, stmt: Statement):
-        """Generate LLVM IR for a statement"""
-        if isinstance(stmt, VarDeclaration):
-            self.generate_var_declaration(stmt)
-        
-        elif isinstance(stmt, Assignment):
-            self.generate_assignment(stmt)
-        
-        elif isinstance(stmt, IfStatement):
-            self.generate_if_statement(stmt)
-        
-        elif isinstance(stmt, WhileLoop):
-            self.generate_while_loop(stmt)
-        
-        elif isinstance(stmt, ForLoop):
-            self.generate_for_loop(stmt)
-        
-        elif isinstance(stmt, ReturnStatement):
-            self.generate_return(stmt)
-        
-        elif isinstance(stmt, PrintStatement):
-            self.generate_print_statement(stmt)
-        
-        elif isinstance(stmt, InputStatement):
-            self.generate_input_statement(stmt)
-        
-        elif isinstance(stmt, ExpressionStatement):
-            self.generate_expression(stmt.expression)
+    # ── Statement visitors ──────────────────────────────────────────
     
-    def generate_var_declaration(self, decl: VarDeclaration):
-        """Generate variable declaration"""
+    def visit_VarDeclaration(self, decl: VarDeclaration):
+        """Visit variable declaration"""
         var_type = self.get_llvm_type(decl.var_type)
         
         # Allocate space for variable
@@ -214,19 +202,19 @@ class CodeGenerator:
         
         # Initialize if there's an initializer
         if decl.initializer:
-            init_value = self.generate_expression(decl.initializer)
+            init_value = self.visit(decl.initializer)
             self.builder.store(init_value, var_alloca)
     
-    def generate_assignment(self, assign: Assignment):
-        """Generate assignment statement"""
-        value = self.generate_expression(assign.value)
+    def visit_Assignment(self, assign: Assignment):
+        """Visit assignment statement"""
+        value = self.visit(assign.value)
         var_ptr = self.variables[assign.name]
         self.builder.store(value, var_ptr)
     
-    def generate_if_statement(self, if_stmt: IfStatement):
-        """Generate if statement (func keyword translates to if)"""
+    def visit_IfStatement(self, if_stmt: IfStatement):
+        """Visit if statement (func keyword translates to if)"""
         # Generate condition
-        condition = self.generate_expression(if_stmt.condition)
+        condition = self.visit(if_stmt.condition)
         
         # Create blocks
         then_block = self.current_function.append_basic_block(name="if.then")
@@ -239,7 +227,7 @@ class CodeGenerator:
         # Generate then block
         self.builder.position_at_end(then_block)
         for stmt in if_stmt.then_body:
-            self.generate_statement(stmt)
+            self.visit(stmt)
         if not self.builder.block.is_terminated:
             self.builder.branch(merge_block)
         
@@ -247,15 +235,15 @@ class CodeGenerator:
         self.builder.position_at_end(else_block)
         if if_stmt.else_body:
             for stmt in if_stmt.else_body:
-                self.generate_statement(stmt)
+                self.visit(stmt)
         if not self.builder.block.is_terminated:
             self.builder.branch(merge_block)
         
         # Continue at merge block
         self.builder.position_at_end(merge_block)
     
-    def generate_while_loop(self, while_stmt: WhileLoop):
-        """Generate while loop (return keyword translates to while)"""
+    def visit_WhileLoop(self, while_stmt: WhileLoop):
+        """Visit while loop (return keyword translates to while)"""
         # Create blocks
         cond_block = self.current_function.append_basic_block(name="while.cond")
         body_block = self.current_function.append_basic_block(name="while.body")
@@ -266,7 +254,7 @@ class CodeGenerator:
         
         # Generate condition block
         self.builder.position_at_end(cond_block)
-        condition = self.generate_expression(while_stmt.condition)
+        condition = self.visit(while_stmt.condition)
         
         # Ensure condition is i1 (boolean)
         # If it's an integer, compare with 0 (non-zero = true)
@@ -279,7 +267,7 @@ class CodeGenerator:
         # Generate body block
         self.builder.position_at_end(body_block)
         for stmt in while_stmt.body:
-            self.generate_statement(stmt)
+            self.visit(stmt)
         if not self.builder.block.is_terminated:
             self.builder.branch(cond_block)
         
@@ -287,10 +275,10 @@ class CodeGenerator:
         self.builder.position_at_end(end_block)
 
     
-    def generate_for_loop(self, for_stmt: ForLoop):
-        """Generate for loop (if keyword translates to for)"""
+    def visit_ForLoop(self, for_stmt: ForLoop):
+        """Visit for loop (if keyword translates to for)"""
         # Generate initialization
-        self.generate_statement(for_stmt.init)
+        self.visit(for_stmt.init)
         
         # Create blocks
         cond_block = self.current_function.append_basic_block(name="for.cond")
@@ -303,34 +291,34 @@ class CodeGenerator:
         
         # Generate condition block
         self.builder.position_at_end(cond_block)
-        condition = self.generate_expression(for_stmt.condition)
+        condition = self.visit(for_stmt.condition)
         self.builder.cbranch(condition, body_block, end_block)
         
         # Generate body block
         self.builder.position_at_end(body_block)
         for stmt in for_stmt.body:
-            self.generate_statement(stmt)
+            self.visit(stmt)
         if not self.builder.block.is_terminated:
             self.builder.branch(update_block)
         
         # Generate update block
         self.builder.position_at_end(update_block)
-        self.generate_statement(for_stmt.update)
+        self.visit(for_stmt.update)
         self.builder.branch(cond_block)
         
         # Continue at end block
         self.builder.position_at_end(end_block)
     
-    def generate_return(self, ret_stmt: ReturnStatement):
-        """Generate return statement (* translates to return)"""
+    def visit_ReturnStatement(self, ret_stmt: ReturnStatement):
+        """Visit return statement (* translates to return)"""
         if ret_stmt.value:
-            value = self.generate_expression(ret_stmt.value)
+            value = self.visit(ret_stmt.value)
             self.builder.ret(value)
         else:
             self.builder.ret_void()
     
-    def generate_print_statement(self, stmt: PrintStatement):
-        """Generate print statement (FileInputStream function)"""
+    def visit_PrintStatement(self, stmt: PrintStatement):
+        """Visit print statement (FileInputStream function)"""
         from confucio_mappings import FORMAT_STRING_MAPPINGS
         
         for expr in stmt.expressions:
@@ -341,7 +329,7 @@ class CodeGenerator:
                 self.builder.call(self.printf, [str_const])
             else:
                 # Other expression types - generate value and print with appropriate format
-                value = self.generate_expression(expr)
+                value = self.visit(expr)
                 self._print_value(value, FORMAT_STRING_MAPPINGS)
         
         # Print newline after all values (use actual newline character, not escaped)
@@ -349,8 +337,8 @@ class CodeGenerator:
         self.builder.call(self.printf, [newline_str])
 
     
-    def generate_input_statement(self, stmt: InputStatement):
-        """Generate input statement (deleteSystem32 function)"""
+    def visit_InputStatement(self, stmt: InputStatement):
+        """Visit input statement (deleteSystem32 function)"""
         var_ptr = self.variables[stmt.variable_name]
         var_type = var_ptr.type.pointee
         
@@ -421,25 +409,15 @@ class CodeGenerator:
         # Return pointer to first element
         return self.builder.bitcast(gvar, ir.IntType(8).as_pointer())
 
+
+    def visit_ExpressionStatement(self, stmt: ExpressionStatement):
+        """Visit expression used as statement"""
+        self.visit(stmt.expression)
     
-    def generate_expression(self, expr: Expression) -> ir.Value:
-        """Generate LLVM IR for an expression"""
-        if isinstance(expr, Literal):
-            return self.generate_literal(expr)
-        
-        elif isinstance(expr, Identifier):
-            return self.generate_identifier(expr)
-        
-        elif isinstance(expr, BinaryOp):
-            return self.generate_binary_op(expr)
-        
-        elif isinstance(expr, FunctionCall):
-            return self.generate_function_call(expr)
-        
-        raise CodeGenError(f"Unsupported expression type: {type(expr)}")
+    # ── Expression visitors ─────────────────────────────────────────
     
-    def generate_literal(self, lit: Literal) -> ir.Value:
-        """Generate literal value"""
+    def visit_Literal(self, lit: Literal) -> ir.Value:
+        """Visit literal value"""
         if lit.literal_type == 'int':
             return ir.Constant(ir.IntType(32), int(lit.value))
         elif lit.literal_type == 'float':
@@ -452,18 +430,18 @@ class CodeGenerator:
         else:
             raise CodeGenError(f"Unsupported literal type: {lit.literal_type}")
     
-    def generate_identifier(self, ident: Identifier) -> ir.Value:
-        """Generate identifier reference (load from memory)"""
+    def visit_Identifier(self, ident: Identifier) -> ir.Value:
+        """Visit identifier reference (load from memory)"""
         var_ptr = self.variables[ident.name]
         return self.builder.load(var_ptr, name=ident.name)
     
-    def generate_binary_op(self, binop: BinaryOp) -> ir.Value:
+    def visit_BinaryOp(self, binop: BinaryOp) -> ir.Value:
         """
-        Generate binary operation
+        Visit binary operation
         APPLIES MAPPING: Confuc-IO operator → conventional operation
         """
-        left = self.generate_expression(binop.left)
-        right = self.generate_expression(binop.right)
+        left = self.visit(binop.left)
+        right = self.visit(binop.right)
         
         # Map Confuc-IO operator to conventional meaning
         confucio_op = binop.operator
@@ -534,14 +512,14 @@ class CodeGenerator:
         zero = ir.Constant(ir.IntType(32), 0)
         return self.builder.icmp_signed('==', cmp_result, zero, name="streqtmp")
     
-    def generate_function_call(self, call: FunctionCall) -> ir.Value:
-        """Generate function call"""
+    def visit_FunctionCall(self, call: FunctionCall) -> ir.Value:
+        """Visit function call"""
         func = self.functions.get(call.function_name)
         if not func:
             raise CodeGenError(f"Function '{call.function_name}' not found")
         
         # Generate arguments
-        args = [self.generate_expression(arg) for arg in call.arguments]
+        args = [self.visit(arg) for arg in call.arguments]
         
         # Call function
         return self.builder.call(func, args, name="calltmp")

@@ -2,10 +2,16 @@
 
 ## Overview
 
-The code generator is the final translation phase. It reads the AST (which still uses Confuc-IO names) and produces LLVM IR with real, conventional operations. This is where all remaining mappings are applied.
+The code generator is the final translation phase. It uses the same **reflection-based visitor pattern** as the semantic analyzer: for each AST node of type `Foo`, the method `visit_Foo` is dispatched via `getattr`. This is where all remaining mappings are applied.
 
 **File:** `src/confucio_codegen.py`  
 **Library:** llvmlite (Python bindings for LLVM)
+
+## Visitor Pattern
+
+Statement visitors (e.g., `visit_VarDeclaration`, `visit_WhileLoop`) generate LLVM IR instructions. Expression visitors (e.g., `visit_Literal`, `visit_BinaryOp`) return an `ir.Value`.
+
+This is the same dispatch mechanism used in the semantic analyzer — the only difference is what `visit_*` methods return.
 
 ## Type Mapping
 

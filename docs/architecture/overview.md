@@ -65,7 +65,7 @@ Use `--output-ast` to save it as a `.ast` file.
 
 **File:** `src/confucio_semantic.py`
 
-The semantic analyzer validates the AST. Because types are still in Confuc-IO form, it must work with Confuc-IO names:
+The semantic analyzer validates the AST using a **reflection-based visitor pattern** — for each AST node type `Foo`, it dispatches to a `visit_Foo` method via `getattr`. Because types are still in Confuc-IO form, it works with Confuc-IO names:
 
 - A variable declared as `Float` is treated as an integer
 - A literal `5` (Python `int`) is mapped to the Confuc-IO type `Float`
@@ -78,7 +78,7 @@ The analyzer also checks: variable declaration before use, initialization before
 
 **File:** `src/confucio_codegen.py`
 
-This is where all remaining mappings are finally applied:
+The code generator uses the same **reflection-based visitor pattern** as the semantic analyzer. This is where all remaining mappings are finally applied:
 
 - **Types** are mapped to LLVM: `Float` → `i32`, `int` → `i8*`, `String` → `double`, `While` → `i1`
 - **Operators** are mapped via `OPERATOR_MAPPINGS`: `/` → `add`, `~` → `sub`, `Bool` → `mul`, `+` → `sdiv`

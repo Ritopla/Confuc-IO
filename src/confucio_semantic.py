@@ -1,7 +1,10 @@
 """
 Confuc-IO Semantic Analyzer
 
-Performs semantic analysis on the AST including:
+Performs semantic analysis on the AST using a reflection-based visitor pattern.
+Each AST node type is handled by a visit_<ClassName> method, dispatched via getattr.
+
+Checks include:
 - Identifier declaration checking
 - No shadowing enforcement (single global scope)
 - Variable initialization verification before use
@@ -85,7 +88,12 @@ class SymbolTable:
 
 
 class SemanticAnalyzer:
-    """Semantic analyzer for Confuc-IO"""
+    """
+    Semantic analyzer for Confuc-IO.
+    
+    Uses a reflection-based visitor pattern: for each AST node of type Foo,
+    the method visit_Foo is looked up via getattr and called.
+    """
     
     def __init__(self):
         self.symbol_table = SymbolTable()
@@ -96,6 +104,19 @@ class SemanticAnalyzer:
     def get_line(node) -> int:
         """Safely get line number from AST node"""
         return getattr(node, 'line', 0)
+    
+    def visit(self, node):
+        """
+        Dispatch to the appropriate visit_<ClassName> method via reflection.
+        
+        For statement nodes, returns None.
+        For expression nodes, returns the Confuc-IO type name (str).
+        """
+        method_name = f'visit_{type(node).__name__}'
+        visitor = getattr(self, method_name, None)
+        if visitor is None:
+            raise SemanticError(f"No visitor method for AST node type: {type(node).__name__}")
+        return visitor(node)
     
     def analyze(self, ast: Program):
         """Perform semantic analysis on the program"""
@@ -138,44 +159,17 @@ class SemanticAnalyzer:
                 line=param.line
             )
         
-        # Analyze function body
+        # Analyze function body using visitor dispatch
         for stmt in func.body:
-            self.analyze_statement(stmt)
+            self.visit(stmt)
         
         # Restore variables (remove parameters from global scope)
         self.symbol_table.symbols = saved_variables
     
-    def analyze_statement(self, stmt: Statement):
-        """Analyze a statement"""
-        if isinstance(stmt, VarDeclaration):
-            self.analyze_var_declaration(stmt)
-        
-        elif isinstance(stmt, Assignment):
-            self.analyze_assignment(stmt)
-        
-        elif isinstance(stmt, IfStatement):
-            self.analyze_if_statement(stmt)
-        
-        elif isinstance(stmt, WhileLoop):
-            self.analyze_while_loop(stmt)
-        
-        elif isinstance(stmt, ForLoop):
-            self.analyze_for_loop(stmt)
-        
-        elif isinstance(stmt, ReturnStatement):
-            self.analyze_return_statement(stmt)
-        
-        elif isinstance(stmt, PrintStatement):
-            self.analyze_print_statement(stmt)
-        
-        elif isinstance(stmt, InputStatement):
-            self.analyze_input_statement(stmt)
-        
-        elif isinstance(stmt, ExpressionStatement):
-            self.analyze_expression(stmt.expression)
+    # ── Statement visitors ──────────────────────────────────────────
     
-    def analyze_var_declaration(self, decl: VarDeclaration):
-        """Analyze variable declaration"""
+    def visit_VarDeclaration(self, decl: VarDeclaration):
+        """Visit variable declaration"""
         # Check if type is valid
         if decl.var_type not in TYPE_MAPPINGS:
             raise SemanticError(
@@ -185,7 +179,7 @@ class SemanticAnalyzer:
         # If there's an initializer, analyze it
         initialized = False
         if decl.initializer:
-            init_type = self.analyze_expression(decl.initializer)
+            init_type = self.visit(decl.initializer)
             # Type checking
             if not self.types_compatible(decl.var_type, init_type):
                 raise SemanticError(
@@ -197,8 +191,8 @@ class SemanticAnalyzer:
         # Declare variable (will fail if already exists due to no shadowing rule)
         self.symbol_table.declare_variable(decl.name, decl.var_type, initialized, getattr(decl, 'line', 0))
     
-    def analyze_assignment(self, assign: Assignment):
-        """Analyze assignment statement"""
+    def visit_Assignment(self, assign: Assignment):
+        """Visit assignment statement"""
         # Check if variable is declared
         if not self.symbol_table.is_declared(assign.name):
             raise SemanticError(
@@ -206,7 +200,7 @@ class SemanticAnalyzer:
             )
         
         # Analyze right-hand side expression
-        value_type = self.analyze_expression(assign.value)
+        value_type = self.visit(assign.value)
         
         # Get variable type
         var_info = self.symbol_table.get_variable(assign.name)
@@ -221,10 +215,10 @@ class SemanticAnalyzer:
         # Mark as initialized
         self.symbol_table.mark_initialized(assign.name)
     
-    def analyze_if_statement(self, if_stmt: IfStatement):
-        """Analyze if statement"""
+    def visit_IfStatement(self, if_stmt: IfStatement):
+        """Visit if statement"""
         # Analyze condition
-        cond_type = self.analyze_expression(if_stmt.condition)
+        cond_type = self.visit(if_stmt.condition)
         
         # Condition should be boolean
         if cond_type != 'While':  # While is the bool type in Confuc-IO
@@ -233,50 +227,50 @@ class SemanticAnalyzer:
         
         # Analyze then body
         for stmt in if_stmt.then_body:
-            self.analyze_statement(stmt)
+            self.visit(stmt)
         
         # Analyze else body if present
         if if_stmt.else_body:
             for stmt in if_stmt.else_body:
-                self.analyze_statement(stmt)
+                self.visit(stmt)
     
-    def analyze_while_loop(self, while_stmt: WhileLoop):
-        """Analyze while loop"""
+    def visit_WhileLoop(self, while_stmt: WhileLoop):
+        """Visit while loop"""
         # Analyze condition
-        self.analyze_expression(while_stmt.condition)
+        self.visit(while_stmt.condition)
         
         # Analyze body
         for stmt in while_stmt.body:
-            self.analyze_statement(stmt)
+            self.visit(stmt)
     
-    def analyze_for_loop(self, for_stmt: ForLoop):
-        """Analyze for loop"""
+    def visit_ForLoop(self, for_stmt: ForLoop):
+        """Visit for loop"""
         # Analyze initialization
-        self.analyze_statement(for_stmt.init)
+        self.visit(for_stmt.init)
         
         # Analyze condition
-        self.analyze_expression(for_stmt.condition)
+        self.visit(for_stmt.condition)
         
         # Analyze update
-        self.analyze_statement(for_stmt.update)
+        self.visit(for_stmt.update)
         
         # Analyze body
         for stmt in for_stmt.body:
-            self.analyze_statement(stmt)
+            self.visit(stmt)
     
-    def analyze_return_statement(self, ret_stmt: ReturnStatement):
-        """Analyze return statement"""
+    def visit_ReturnStatement(self, ret_stmt: ReturnStatement):
+        """Visit return statement"""
         if ret_stmt.value:
-            self.analyze_expression(ret_stmt.value)
+            self.visit(ret_stmt.value)
     
-    def analyze_print_statement(self, print_stmt: PrintStatement):
-        """Analyze print statement (FileInputStream)"""
+    def visit_PrintStatement(self, print_stmt: PrintStatement):
+        """Visit print statement (FileInputStream)"""
         # Analyze all expressions to be printed
         for expr in print_stmt.expressions:
-            self.analyze_expression(expr)
+            self.visit(expr)
     
-    def analyze_input_statement(self, input_stmt: InputStatement):
-        """Analyze input statement (deleteSystem32)"""
+    def visit_InputStatement(self, input_stmt: InputStatement):
+        """Visit input statement (deleteSystem32)"""
         # Check if variable is declared
         if not self.symbol_table.is_declared(input_stmt.variable_name):
             raise SemanticError(
@@ -286,85 +280,89 @@ class SemanticAnalyzer:
         # Mark variable as initialized (reading input initializes it)
         self.symbol_table.mark_initialized(input_stmt.variable_name)
 
+    def visit_ExpressionStatement(self, stmt: ExpressionStatement):
+        """Visit expression used as statement"""
+        self.visit(stmt.expression)
     
-    def analyze_expression(self, expr: Expression) -> str:
-        """
-        Analyze an expression and return its type
-        Returns the Confuc-IO type name (Float, String, int, While)
-        """
-        if isinstance(expr, Literal):
-            # Map literal type to Confuc-IO type
-            type_map = {
-                'int': 'Float',
-                'float': 'String',
-                'string': 'int',
-                'bool': 'While'
-            }
-            return type_map.get(expr.literal_type, expr.literal_type)
+    # ── Expression visitors ─────────────────────────────────────────
+    
+    def visit_Literal(self, lit: Literal) -> str:
+        """Visit literal — returns Confuc-IO type name"""
+        # Map literal type to Confuc-IO type
+        type_map = {
+            'int': 'Float',
+            'float': 'String',
+            'string': 'int',
+            'bool': 'While'
+        }
+        return type_map.get(lit.literal_type, lit.literal_type)
+    
+    def visit_Identifier(self, ident: Identifier) -> str:
+        """Visit identifier — returns Confuc-IO type name"""
+        # Check if variable is declared
+        if not self.symbol_table.is_declared(ident.name):
+            raise SemanticError(
+                f"Line {self.get_line(ident)}: Variable '{ident.name}' used before declaration"
+            )
         
-        elif isinstance(expr, Identifier):
-            # Check if variable is declared
-            if not self.symbol_table.is_declared(expr.name):
-                raise SemanticError(
-                    f"Line {self.get_line(expr)}: Variable '{expr.name}' used before declaration"
-                )
-            
-            # Check if variable is initialized
-            if not self.symbol_table.is_initialized(expr.name):
-                raise SemanticError(
-                    f"Line {self.get_line(expr)}: Variable '{expr.name}' used before initialization"
-                )
-            
-            var_info = self.symbol_table.get_variable(expr.name)
-            return var_info.type
+        # Check if variable is initialized
+        if not self.symbol_table.is_initialized(ident.name):
+            raise SemanticError(
+                f"Line {self.get_line(ident)}: Variable '{ident.name}' used before initialization"
+            )
         
-        elif isinstance(expr, BinaryOp):
-            left_type = self.analyze_expression(expr.left)
-            right_type = self.analyze_expression(expr.right)
-            
-            # For arithmetic operators, types should match
-            if expr.operator in ['/', '~', '+', 'Bool']:  # Confuc-IO arithmetic ops
-                if not self.types_compatible(left_type, right_type):
-                    raise SemanticError(
-                        f"Line {self.get_line(expr)}: Type mismatch in binary operation. "
-                        f"Left type: {left_type}, Right type: {right_type}"
-                    )
-                # Return the common type
-                return left_type
-            
-            # For comparison operators, return boolean
-            elif expr.operator in ['=', '#', '@@']:  # Confuc-IO comparison ops
-                return 'While'  # Boolean type in Confuc-IO
-            
+        var_info = self.symbol_table.get_variable(ident.name)
+        return var_info.type
+    
+    def visit_BinaryOp(self, binop: BinaryOp) -> str:
+        """Visit binary operation — returns Confuc-IO type name"""
+        left_type = self.visit(binop.left)
+        right_type = self.visit(binop.right)
+        
+        # For arithmetic operators, types should match
+        if binop.operator in ['/', '~', '+', 'Bool']:  # Confuc-IO arithmetic ops
+            if not self.types_compatible(left_type, right_type):
+                raise SemanticError(
+                    f"Line {self.get_line(binop)}: Type mismatch in binary operation. "
+                    f"Left type: {left_type}, Right type: {right_type}"
+                )
+            # Return the common type
             return left_type
         
-        elif isinstance(expr, FunctionCall):
-            # Check if function exists
-            func = self.symbol_table.get_function(expr.function_name)
-            if func is None:
-                raise SemanticError(
-                    f"Line {self.get_line(expr)}: Undefined function '{expr.function_name}'"
-                )
-            
-            # Check argument count
-            if len(expr.arguments) != len(func.parameters):
-                raise SemanticError(
-                    f"Line {self.get_line(expr)}: Function '{expr.function_name}' expects {len(func.parameters)} arguments, "
-                    f"got {len(expr.arguments)}"
-                )
-            
-            # Type check arguments
-            for i, (arg, param) in enumerate(zip(expr.arguments, func.parameters)):
-                arg_type = self.analyze_expression(arg)
-                if not self.types_compatible(param.param_type, arg_type):
-                    raise SemanticError(
-                        f"Line {self.get_line(expr)}: Argument {i+1} type mismatch in call to '{expr.function_name}'. "
-                        f"Expected {param.param_type}, got {arg_type}"
-                    )
-            
-            return func.return_type
+        # For comparison operators, return boolean
+        elif binop.operator in ['=', '#', '@@']:  # Confuc-IO comparison ops
+            return 'While'  # Boolean type in Confuc-IO
         
-        return 'Float'  # Default
+        return left_type
+    
+    def visit_FunctionCall(self, call: FunctionCall) -> str:
+        """Visit function call — returns Confuc-IO type name"""
+        # Check if function exists
+        func = self.symbol_table.get_function(call.function_name)
+        if func is None:
+            raise SemanticError(
+                f"Line {self.get_line(call)}: Undefined function '{call.function_name}'"
+            )
+        
+        # Check argument count
+        if len(call.arguments) != len(func.parameters):
+            raise SemanticError(
+                f"Line {self.get_line(call)}: Function '{call.function_name}' expects {len(func.parameters)} arguments, "
+                f"got {len(call.arguments)}"
+            )
+        
+        # Type check arguments
+        for i, (arg, param) in enumerate(zip(call.arguments, func.parameters)):
+            arg_type = self.visit(arg)
+            if not self.types_compatible(param.param_type, arg_type):
+                raise SemanticError(
+                    f"Line {self.get_line(call)}: Argument {i+1} type mismatch in call to '{call.function_name}'. "
+                    f"Expected {param.param_type}, got {arg_type}"
+                )
+        
+        return func.return_type
+    
+    # ── Helpers ─────────────────────────────────────────────────────
     
     def types_compatible(self, expected: str, actual: str) -> bool:
         """Check if two types are compatible"""
